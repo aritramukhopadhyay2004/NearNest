@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Top Radar Arcs -->
+    <path
+        android:pathData="M35,32 A26,26 0 0,1 73,32"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M42,39 A17,17 0 0,1 66,39"
+        android:strokeColor="#00F0FF"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Map Pin Silhouette -->
+    <path
+        android:pathData="M54,43 C46.2,43 40,49.2 40,57 C40,66.8 52.1,77.2 53.2,78.1 C53.7,78.5 54.3,78.5 54.8,78.1 C55.9,77.2 68,66.8 68,57 C68,49.2 61.8,43 54,43 Z"
+        android:fillColor="#00F0FF" />
+
+    <!-- Family Heart / Center cutout -->
+    <path
+        android:pathData="M54,58.8 L52.8,57.7 C48.8,54.1 46.2,51.7 46.2,48.7 C46.2,46.3 48.1,44.4 50.5,44.4 C51.9,44.4 53.2,45 54,46 C54.8,45 56.1,44.4 57.5,44.4 C59.9,44.4 61.8,46.3 61.8,48.7 C61.8,51.7 59.2,54.1 55.2,57.7 Z"
+        android:fillColor="#0B132B" />
+
+    <!-- Pin Inner Dot -->
+    <path
+        android:pathData="M54,51 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+        android:fillColor="#38BDF8" />
+</vector>
