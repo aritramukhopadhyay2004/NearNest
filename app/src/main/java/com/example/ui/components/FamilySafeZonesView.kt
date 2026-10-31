@@ -168,7 +168,7 @@ fun FamilySafeZonesView(
                             )
                         )
                         Text(
-                            text = "john.famtrack@example.com • ID: NEST-78",
+                            text = "john.nearnest@example.com • ID: NEST-78",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 fontSize = 11.sp

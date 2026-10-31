@@ -808,7 +808,7 @@ fun ChatMessageItem(message: ChatMessage) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "FamTrack AI",
+                                text = "NearNest AI",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = AccentCyan,
                                     fontWeight = FontWeight.Bold,

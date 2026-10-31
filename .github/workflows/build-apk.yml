@@ -63,7 +63,7 @@ jobs:
           tag_name: latest
           name: "NearNest Latest Build"
           body: |
-            ### 📲 NearNest (FamTrack AI) Latest Release
+            ### 📲 NearNest Latest Release
             
             This release is automatically generated and updated with the latest features from the `main` branch.
             

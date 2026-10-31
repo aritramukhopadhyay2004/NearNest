@@ -12,3 +12,4 @@ if %ERRORLEVEL% equ 0 (
     echo.
     echo [NearNest] Build failed with exit code %ERRORLEVEL%.
 )
+

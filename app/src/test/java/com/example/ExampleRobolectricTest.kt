@@ -26,7 +26,7 @@ class ExampleRobolectricTest {
     fun testAppName() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val appName = context.getString(R.string.app_name)
-        assertEquals("FamTrack AI", appName)
+        assertEquals("NearNest", appName)
     }
 
     /**

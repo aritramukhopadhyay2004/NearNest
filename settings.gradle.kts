@@ -22,7 +22,7 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "FamTrack AI"
+rootProject.name = "NearNest"
 
 include(":app")
 

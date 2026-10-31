@@ -1,4 +1,4 @@
-# FamTrack AI: AI-Powered Family Location Tracker & Movement Assistant
+# NearNest: AI-Powered Family Location Tracker & Movement Assistant
 ## Comprehensive Project Documentation & Technical Overview
 
 ---
@@ -12,8 +12,8 @@ Modern family safety solutions often force a compromise between safety and user 
 - **Battery & Device Overheating:** Inefficient GPS polling quickly depletes phone batteries and limits daily reliability.
 - **Privacy & Hallucination Risks in AI:** General LLM assistants frequently hallucinate activities or leak raw geographical coordinates.
 
-### 1.2 The FamTrack AI Agenda
-**FamTrack AI** solves this by uniting **real-time spatial tracking (Google Play Services Fused Location + OpenStreetMap)** with a **zero-hallucination conversational AI Assistant powered by Google Gemini**. 
+### 1.2 The NearNest Agenda
+**NearNest** solves this by uniting **real-time spatial tracking (Google Play Services Fused Location + OpenStreetMap)** with a **zero-hallucination conversational AI Assistant powered by Google Gemini**. 
 
 Instead of scrubbing a timeline, a parent or caregiver can simply ask:
 > *"Did John go to the grocery store today?"*
@@ -26,7 +26,7 @@ The assistant cross-references strictly verified trajectory databases, performs 
 
 ## 2. Six Non-Negotiable AI Movement Assistant Rules
 
-FamTrack AI implements six strict architectural rules enforced by both deterministic validation layers and tailored Gemini system instructions:
+NearNest implements six strict architectural rules enforced by both deterministic validation layers and tailored Gemini system instructions:
 
 | Rule | Title | Description & Implementation |
 | :--- | :--- | :--- |
@@ -105,7 +105,7 @@ FamTrack AI implements six strict architectural rules enforced by both determini
 
 ## 5. Security & Reliability Test Cases (Verification Matrix)
 
-FamTrack AI contains automated Robolectric JVM unit tests verifying all core acceptance criteria:
+NearNest contains automated Robolectric JVM unit tests verifying all core acceptance criteria:
 
 | Test ID | Test Name | Scenario Tested | Outcome / Result |
 | :--- | :--- | :--- | :--- |

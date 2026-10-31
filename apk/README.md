@@ -1,4 +1,4 @@
-# 📲 NearNest (FamTrack AI) - Latest Android APK
+# 📲 NearNest - Latest Android APK
 
 This directory always provides the latest compiled debug build of **NearNest**.
 

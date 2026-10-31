@@ -100,7 +100,7 @@ class AiMovementAssistant(
     }
 
     companion object {
-        const val SYSTEM_PROMPT = """You are the "AI Movement Assistant" for FamTrack AI, a modern family safety and location application. Your goal is to provide clear, human-friendly, accurate answers about family members' movements based strictly on the provided JSON location history.
+        const val SYSTEM_PROMPT = """You are the "AI Movement Assistant" for NearNest, a modern family safety and location application. Your goal is to provide clear, human-friendly, accurate answers about family members' movements based strictly on the provided JSON location history.
 
 STRICT ACCURACY RULES:
 1. NO HALLUCINATIONS: Base answers strictly on the verified JSON records. If data for a person, time, or location is missing, state clearly: "I don't have data for that time/location."

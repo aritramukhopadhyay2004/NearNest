@@ -57,7 +57,7 @@ class FamilyTrackingRepository(
                 id = "invite_sophia_req",
                 senderId = "user_sophia",
                 senderName = "Sophia",
-                recipientContact = "john.famtrack@example.com",
+                recipientContact = "john.nearnest@example.com",
                 contactType = InviteContactType.EMAIL,
                 recipientName = "John",
                 relation = "Spouse",

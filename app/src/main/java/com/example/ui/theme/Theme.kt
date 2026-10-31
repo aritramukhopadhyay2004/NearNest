@@ -5,7 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val FamTrackDarkColorScheme = darkColorScheme(
+private val NearNestDarkColorScheme = darkColorScheme(
     primary = AccentCyan,
     onPrimary = Color(0xFF00363A),
     primaryContainer = Color(0xFF004D40),
@@ -33,7 +33,7 @@ fun MyApplicationTheme(
 ) {
     // We enforce the optimized high-contrast dark color scheme for best readability & battery conservation (TC07)
     MaterialTheme(
-        colorScheme = FamTrackDarkColorScheme,
+        colorScheme = NearNestDarkColorScheme,
         typography = Typography,
         content = content
     )

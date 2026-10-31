@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    NearNest (FamTrack AI) - In-Place APK Generator & 20-Day Change Sync Script
+    NearNest - In-Place APK Generator & 20-Day Change Sync Script
 
 .DESCRIPTION
     Checks if any project source code, layouts, dependencies, or assets have been
