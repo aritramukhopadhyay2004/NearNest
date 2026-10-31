@@ -124,7 +124,7 @@ class FamilyTrackingRepository(
     /**
      * Real-time GPS location update captured via Google Play Services location library
      */
-    fun updateRealGpsLocation(memberId: String, lat: Double, lng: Double, accuracy: Float = 5.0f) {
+    fun updateRealGpsLocation(memberId: String, lat: Double, lng: Double, accuracy: Float = 5.0f, placeName: String? = null) {
         scope.launch {
             val startTime = System.currentTimeMillis()
             val currentList = _members.value.toMutableList()
@@ -134,10 +134,12 @@ class FamilyTrackingRepository(
             val member = currentList[index]
             val currentTimeStr = timeFormat12h.format(Date())
             val isOffline = _isOfflineMode.value
+            val resolvedPlace = placeName ?: "GPS: ${"%.4f".format(lat)}, ${"%.4f".format(lng)}"
 
             val updatedMember = member.copy(
                 currentLat = lat,
                 currentLng = lng,
+                currentPlace = resolvedPlace,
                 lastSeenTime12h = currentTimeStr
             )
             currentList[index] = updatedMember
@@ -148,7 +150,7 @@ class FamilyTrackingRepository(
                 userName = member.name,
                 latitude = lat,
                 longitude = lng,
-                placeName = "GPS Live: ${"%.4f".format(lat)}, ${"%.4f".format(lng)}",
+                placeName = resolvedPlace,
                 category = "Real GPS",
                 timestampEpochMillis = System.currentTimeMillis(),
                 timestamp12h = currentTimeStr,

@@ -347,9 +347,13 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
             _statusBanner.value = "Requesting real GPS from Google Play Services..."
             val loc = locationServiceManager.getCurrentGpsLocation()
             if (loc != null) {
-                repository.updateRealGpsLocation(targetId, loc.latitude, loc.longitude, loc.accuracy)
+                // Reverse geocode lat/lng to get real street/neighborhood address
+                val resolvedAddress = locationServiceManager.getAddressFromLocation(loc.latitude, loc.longitude)
+                val placeName = resolvedAddress ?: "GPS: ${"%.4f".format(loc.latitude)}, ${"%.4f".format(loc.longitude)}"
+
+                repository.updateRealGpsLocation(targetId, loc.latitude, loc.longitude, loc.accuracy, placeName)
                 val memberName = familyMembers.value.firstOrNull { it.id == targetId }?.name ?: "Member"
-                _statusBanner.value = "Real GPS captured for $memberName: ${"%.4f".format(loc.latitude)}, ${"%.4f".format(loc.longitude)} (±${loc.accuracy.toInt()}m)"
+                _statusBanner.value = "Real GPS captured for $memberName: $placeName (±${loc.accuracy.toInt()}m)"
             } else {
                 _statusBanner.value = "Play Services location not ready. Simulating GPS ping instead."
                 triggerLiveLocationPing(targetId)

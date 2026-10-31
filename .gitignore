@@ -26,3 +26,6 @@ Thumbs.db
 debug.keystore
 *.jks
 *.keystore
+
+# Local test screenshots
+screenshot*.png
