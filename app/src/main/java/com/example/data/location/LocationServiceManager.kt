@@ -8,12 +8,19 @@ import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.os.Build
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -69,6 +76,38 @@ class LocationServiceManager(private val context: Context) {
             continuation.invokeOnCancellation {
                 cts.cancel()
             }
+        }
+    }
+
+    /**
+     * Continuous live location telemetry stream via Google Play Services Fused Location
+     */
+    @SuppressLint("MissingPermission")
+    fun getLocationUpdates(intervalMs: Long = 10000L): Flow<Location> = callbackFlow {
+        if (!hasLocationPermission()) {
+            close()
+            return@callbackFlow
+        }
+
+        try {
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
+                .setMinUpdateIntervalMillis(intervalMs / 2)
+                .setMinUpdateDistanceMeters(3f)
+                .build()
+
+            val callback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    result.lastLocation?.let { trySend(it) }
+                }
+            }
+
+            fusedLocationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
+
+            awaitClose {
+                fusedLocationClient.removeLocationUpdates(callback)
+            }
+        } catch (e: Exception) {
+            close(e)
         }
     }
 

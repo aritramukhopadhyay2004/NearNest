@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-10-31T23:43:08.3747464+05:30",
+    "buildDate":  "2026-11-01T01:00:25.2450880+05:30",
     "fileSizeBytes":  23391735,
     "fileSizeMb":  22.31,
-    "buildDurationSecs":  14.3,
+    "buildDurationSecs":  35.8,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "792f98e",
+    "gitCommit":  "0c22a93",
     "gitMessage":  [
-                       "feat: rebrand project to NearNest and integrate official app logo across launcher and UI",
+                       "fix: scale adaptive icon foreground to safe zone and provide density-qualified mipmaps to resolve zoomed homescreen icon",
                        ""
                    ],
     "checkWindowDays":  20

@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import com.example.data.model.FamilyMember
 import com.example.data.model.LocationRecord
+import com.example.data.model.MonthlyMovementDay
 import com.example.data.model.PlaceGeofence
 import com.example.data.model.TimelineVisit
 import org.json.JSONArray
@@ -73,43 +74,50 @@ object FamilyDataSeed {
             id = "v_j1", userId = "user_john", placeName = "Home", category = "Residence",
             startTime12h = "12:00 AM", endTime12h = "8:15 AM",
             startTime24h = "00:00", endTime24h = "08:15",
-            durationText = "8h 15m", notes = "Departed for office commute"
+            durationText = "8h 15m", notes = "Departed for office commute",
+            latitude = 37.7749, longitude = -122.4194
         ),
         TimelineVisit(
             id = "v_j2", userId = "user_john", placeName = "Metro Station", category = "Transit",
             startTime12h = "8:30 AM", endTime12h = "8:50 AM",
             startTime24h = "08:30", endTime24h = "08:50",
-            durationText = "20m", notes = "Subway transfer"
+            durationText = "20m", notes = "Subway transfer",
+            latitude = 37.7810, longitude = -122.4100
         ),
         TimelineVisit(
             id = "v_j3", userId = "user_john", placeName = "Tech Park Office", category = "Workplace",
             startTime12h = "9:05 AM", endTime12h = "12:15 PM",
             startTime24h = "09:05", endTime24h = "12:15",
-            durationText = "3h 10m", notes = "Morning work"
+            durationText = "3h 10m", notes = "Morning work",
+            latitude = 37.7891, longitude = -122.4014
         ),
         TimelineVisit(
             id = "v_j4", userId = "user_john", placeName = "Greenwood Cafe", category = "Restaurant",
             startTime12h = "12:20 PM", endTime12h = "1:00 PM",
             startTime24h = "12:20", endTime24h = "13:00",
-            durationText = "40m", notes = "Lunch"
+            durationText = "40m", notes = "Lunch",
+            latitude = 37.7870, longitude = -122.4030
         ),
         TimelineVisit(
             id = "v_j5", userId = "user_john", placeName = "Tech Park Office", category = "Workplace",
             startTime12h = "1:05 PM", endTime12h = "5:10 PM",
             startTime24h = "13:05", endTime24h = "17:10",
-            durationText = "4h 05m", notes = "Afternoon work"
+            durationText = "4h 05m", notes = "Afternoon work",
+            latitude = 37.7891, longitude = -122.4014
         ),
         TimelineVisit(
             id = "v_j6", userId = "user_john", placeName = "Central Supermarket", category = "Grocery Store",
             startTime12h = "5:35 PM", endTime12h = "6:05 PM",
             startTime24h = "17:35", endTime24h = "18:05",
-            durationText = "30m", notes = "Central Supermarket"
+            durationText = "30m", notes = "Central Supermarket",
+            latitude = 37.7800, longitude = -122.4210
         ),
         TimelineVisit(
             id = "v_j7", userId = "user_john", placeName = "Home", category = "Residence",
             startTime12h = "6:25 PM", endTime12h = "11:59 PM",
             startTime24h = "18:25", endTime24h = "23:59",
-            durationText = "Evening", notes = "Arrived home"
+            durationText = "Evening", notes = "Arrived home",
+            latitude = 37.7749, longitude = -122.4194
         ),
 
         // Sarah's visits today
@@ -117,25 +125,29 @@ object FamilyDataSeed {
             id = "v_s1", userId = "user_sarah", placeName = "Home", category = "Residence",
             startTime12h = "12:00 AM", endTime12h = "9:30 AM",
             startTime24h = "00:00", endTime24h = "09:30",
-            durationText = "9h 30m"
+            durationText = "9h 30m",
+            latitude = 37.7749, longitude = -122.4194
         ),
         TimelineVisit(
             id = "v_s2", userId = "user_sarah", placeName = "Downtown Pharmacy", category = "Pharmacy",
             startTime12h = "10:00 AM", endTime12h = "10:30 AM",
             startTime24h = "10:00", endTime24h = "10:30",
-            durationText = "30m", notes = "Downtown Pharmacy visit"
+            durationText = "30m", notes = "Downtown Pharmacy visit",
+            latitude = 37.7715, longitude = -122.4110
         ),
         TimelineVisit(
             id = "v_s3", userId = "user_sarah", placeName = "Community Health Center", category = "Medical",
             startTime12h = "10:45 AM", endTime12h = "12:15 PM",
             startTime24h = "10:45", endTime24h = "12:15",
-            durationText = "1h 30m"
+            durationText = "1h 30m",
+            latitude = 37.7730, longitude = -122.4150
         ),
         TimelineVisit(
             id = "v_s4", userId = "user_sarah", placeName = "Home", category = "Residence",
             startTime12h = "12:45 PM", endTime12h = "11:59 PM",
             startTime24h = "12:45", endTime24h = "23:59",
-            durationText = "Afternoon & Evening"
+            durationText = "Afternoon & Evening",
+            latitude = 37.7749, longitude = -122.4194
         ),
 
         // Emma's visits today
@@ -143,31 +155,36 @@ object FamilyDataSeed {
             id = "v_e1", userId = "user_emma", placeName = "Home", category = "Residence",
             startTime12h = "12:00 AM", endTime12h = "7:45 AM",
             startTime24h = "00:00", endTime24h = "07:45",
-            durationText = "7h 45m"
+            durationText = "7h 45m",
+            latitude = 37.7749, longitude = -122.4194
         ),
         TimelineVisit(
             id = "v_e2", userId = "user_emma", placeName = "Oakridge High School", category = "School",
             startTime12h = "8:15 AM", endTime12h = "3:00 PM",
             startTime24h = "08:15", endTime24h = "15:00",
-            durationText = "6h 45m", notes = "School classes"
+            durationText = "6h 45m", notes = "School classes",
+            latitude = 37.7612, longitude = -122.4350
         ),
         TimelineVisit(
             id = "v_e3", userId = "user_emma", placeName = "Westside Community Park", category = "Park",
             startTime12h = "3:20 PM", endTime12h = "5:30 PM",
             startTime24h = "15:20", endTime24h = "17:30",
-            durationText = "2h 10m", notes = "Track practice"
+            durationText = "2h 10m", notes = "Track practice",
+            latitude = 37.7650, longitude = -122.4450
         ),
         TimelineVisit(
             id = "v_e4", userId = "user_emma", placeName = "City Library", category = "Library",
             startTime12h = "5:45 PM", endTime12h = "7:00 PM",
             startTime24h = "17:45", endTime24h = "19:00",
-            durationText = "1h 15m", notes = "Study hall"
+            durationText = "1h 15m", notes = "Study hall",
+            latitude = 37.7780, longitude = -122.4170
         ),
         TimelineVisit(
             id = "v_e5", userId = "user_emma", placeName = "Home", category = "Residence",
             startTime12h = "7:20 PM", endTime12h = "11:59 PM",
             startTime24h = "19:20", endTime24h = "23:59",
-            durationText = "Evening", notes = "Home for dinner"
+            durationText = "Evening", notes = "Home for dinner",
+            latitude = 37.7749, longitude = -122.4194
         ),
 
         // Michael's visits today
@@ -175,25 +192,29 @@ object FamilyDataSeed {
             id = "v_m1", userId = "user_michael", placeName = "Home", category = "Residence",
             startTime12h = "12:00 AM", endTime12h = "7:00 AM",
             startTime24h = "00:00", endTime24h = "07:00",
-            durationText = "7h 00m"
+            durationText = "7h 00m",
+            latitude = 37.7749, longitude = -122.4194
         ),
         TimelineVisit(
             id = "v_m2", userId = "user_michael", placeName = "Sunrise Senior Center", category = "Community Center",
             startTime12h = "7:30 AM", endTime12h = "11:00 AM",
             startTime24h = "07:30", endTime24h = "11:00",
-            durationText = "3h 30m"
+            durationText = "3h 30m",
+            latitude = 37.7820, longitude = -122.4300
         ),
         TimelineVisit(
             id = "v_m3", userId = "user_michael", placeName = "Westside Community Park", category = "Park",
             startTime12h = "11:20 AM", endTime12h = "1:00 PM",
             startTime24h = "11:20", endTime24h = "13:00",
-            durationText = "1h 40m", notes = "Walk in park"
+            durationText = "1h 40m", notes = "Walk in park",
+            latitude = 37.7650, longitude = -122.4450
         ),
         TimelineVisit(
             id = "v_m4", userId = "user_michael", placeName = "Home", category = "Residence",
             startTime12h = "1:30 PM", endTime12h = "11:59 PM",
             startTime24h = "13:30", endTime24h = "23:59",
-            durationText = "Afternoon & Evening"
+            durationText = "Afternoon & Evening",
+            latitude = 37.7749, longitude = -122.4194
         )
     )
 
@@ -273,5 +294,87 @@ object FamilyDataSeed {
             )
         }
         return records
+    }
+
+    /**
+     * Generate 31-day rolling monthly movement records for the monthly record graph view
+     */
+    fun getMonthlyMovementHistory(userId: String): List<MonthlyMovementDay> {
+        val daysInMonth = 31
+        val days = mutableListOf<MonthlyMovementDay>()
+        val dayNames = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+        // Deterministic, realistic patterns per member
+        val baseDist: Float
+        val distVar: Float
+        val baseStops: Int
+        val topPlace: String
+
+        when (userId) {
+            "user_john" -> {
+                baseDist = 22.0f; distVar = 14.0f; baseStops = 5; topPlace = "Tech Park Office"
+            }
+            "user_sarah" -> {
+                baseDist = 18.0f; distVar = 11.0f; baseStops = 4; topPlace = "General Hospital"
+            }
+            "user_emma" -> {
+                baseDist = 8.5f; distVar = 6.0f; baseStops = 3; topPlace = "Oakridge High"
+            }
+            "user_michael" -> {
+                baseDist = 3.5f; distVar = 2.5f; baseStops = 2; topPlace = "Senior Center"
+            }
+            else -> {
+                baseDist = 12.0f; distVar = 8.0f; baseStops = 3; topPlace = "Neighborhood"
+            }
+        }
+
+        for (day in 1..daysInMonth) {
+            val dayOfWeekIndex = (day + 3) % 7
+            val isWeekend = (dayOfWeekIndex == 0 || dayOfWeekIndex == 6)
+            val seedVal = (day * 17 + userId.hashCode()).let { Math.abs(it) % 100 } / 100.0f
+
+            var dist = if (isWeekend) {
+                (baseDist * 0.55f) + (distVar * 0.5f * seedVal)
+            } else {
+                baseDist + (distVar * seedVal)
+            }
+
+            var stops = if (isWeekend) (baseStops - 2).coerceAtLeast(2) else baseStops + (if (seedVal > 0.6f) 1 else 0)
+            var activeMins = (dist * 16.5f).toInt().coerceIn(60, 600)
+
+            // Special peak days for interesting visualization
+            if (userId == "user_john" && day == 18) {
+                dist = 42.5f
+                stops = 8
+                activeMins = 520
+            } else if (userId == "user_sarah" && day == 12) {
+                dist = 34.2f
+                stops = 7
+                activeMins = 480
+            } else if (userId == "user_emma" && day == 22) {
+                dist = 19.8f
+                stops = 5
+                activeMins = 320
+            } else if (userId == "user_michael" && day == 9) {
+                dist = 8.4f
+                stops = 4
+                activeMins = 210
+            }
+
+            val distFormatted = Math.round(dist * 10.0f) / 10.0f
+
+            days.add(
+                MonthlyMovementDay(
+                    dayNumber = day,
+                    dateLabel = "Oct $day",
+                    dayOfWeek = dayNames[dayOfWeekIndex],
+                    distanceKm = distFormatted,
+                    stopsCount = stops,
+                    activeMinutes = activeMins,
+                    topPlace = if (isWeekend) "Home & Leisure" else topPlace
+                )
+            )
+        }
+        return days
     }
 }

@@ -103,7 +103,23 @@ data class TimelineVisit(
     val startTime24h: String, // e.g. "08:15"
     val endTime24h: String,   // e.g. "15:00"
     val durationText: String,
-    val notes: String = ""
+    val notes: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val isLiveTracking: Boolean = false
+)
+
+/**
+ * Daily movement summary for the monthly record connected line graph view
+ */
+data class MonthlyMovementDay(
+    val dayNumber: Int,
+    val dateLabel: String,
+    val dayOfWeek: String,
+    val distanceKm: Float,
+    val stopsCount: Int,
+    val activeMinutes: Int,
+    val topPlace: String
 )
 
 /**

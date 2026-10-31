@@ -17,6 +17,7 @@ import com.example.data.model.PlaceGeofence
 import com.example.data.model.TimelineVisit
 import com.example.data.repository.FamilyDataSeed
 import com.example.data.repository.FamilyTrackingRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,6 +103,7 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val statusBanner: StateFlow<String?> = _statusBanner.asStateFlow()
 
     private val timeFormat12h = SimpleDateFormat("h:mm a", Locale.getDefault())
+    private var liveTrackingJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -112,6 +114,49 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
                 _rawJsonContext.value = FamilyDataSeed.buildLocationHistoryJson(m, v)
             }
         }
+
+        if (locationServiceManager.hasLocationPermission()) {
+            startContinuousLiveTracking()
+        }
+    }
+
+    /**
+     * Continuous live location tracking stream for real-time movement and timeline recording
+     */
+    fun startContinuousLiveTracking() {
+        if (!locationServiceManager.hasLocationPermission()) return
+        if (liveTrackingJob?.isActive == true) return
+        liveTrackingJob = viewModelScope.launch {
+            try {
+                locationServiceManager.getLocationUpdates(intervalMs = 15000L).collect { loc ->
+                    val targetId = _selectedMemberId.value
+                    val resolvedAddress = locationServiceManager.getAddressFromLocation(loc.latitude, loc.longitude)
+                    val placeName = resolvedAddress ?: "GPS: ${"%.4f".format(loc.latitude)}, ${"%.4f".format(loc.longitude)}"
+                    repository.updateRealGpsLocation(targetId, loc.latitude, loc.longitude, loc.accuracy, placeName)
+                }
+            } catch (_: Exception) {
+                // Ignore in tests / background disconnects
+            }
+        }
+    }
+
+    /**
+     * Manually records a visit/checkpoint into the active family timeline
+     */
+    fun recordManualTimelineVisit(placeName: String, category: String = "Check-in") {
+        val targetId = _selectedMemberId.value
+        val member = familyMembers.value.firstOrNull { it.id == targetId }
+        val lat = member?.currentLat ?: 37.7749
+        val lng = member?.currentLng ?: -122.4194
+        repository.recordLiveTimelineVisit(
+            userId = targetId,
+            placeName = placeName,
+            category = category,
+            lat = lat,
+            lng = lng,
+            notes = "Manual check-in recorded"
+        )
+        _statusBanner.value = "✓ Checked into '$placeName' and recorded to timeline."
     }
 
     fun setSelectedTab(index: Int) {
@@ -373,6 +418,7 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
                 repository.updateRealGpsLocation(targetId, loc.latitude, loc.longitude, loc.accuracy, placeName)
                 val memberName = familyMembers.value.firstOrNull { it.id == targetId }?.name ?: "Member"
                 _statusBanner.value = "Real GPS captured for $memberName: $placeName (±${loc.accuracy.toInt()}m)"
+                startContinuousLiveTracking()
             } else {
                 _statusBanner.value = "Play Services location not ready. Simulating GPS ping instead."
                 triggerLiveLocationPing(targetId)

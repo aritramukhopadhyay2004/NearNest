@@ -117,6 +117,7 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) {
             viewModel.captureRealGpsLocation()
+            viewModel.startContinuousLiveTracking()
         }
     }
 
@@ -125,6 +126,12 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     ) { isGranted ->
         if (isGranted) {
             viewModel.startVoiceRecording()
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (viewModel.locationServiceManager.hasLocationPermission()) {
+            viewModel.startContinuousLiveTracking()
         }
     }
 
@@ -300,7 +307,21 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                     members = members,
                     visits = visits,
                     selectedMemberId = selectedMemberId,
-                    onSelectMember = { viewModel.setSelectedMember(it) }
+                    onSelectMember = { viewModel.setSelectedMember(it) },
+                    onCaptureLiveGps = {
+                        if (viewModel.locationServiceManager.hasLocationPermission()) {
+                            viewModel.captureRealGpsLocation()
+                        } else {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
+                    },
+                    onSimulatePing = { viewModel.triggerLiveLocationPing() },
+                    onViewOnMap = { viewModel.setSelectedTab(0) }
                 )
 
                 3 -> FamilySafeZonesView(

@@ -64,7 +64,14 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all {
+        it.systemProperty("java.io.tmpdir", "${rootProject.projectDir}/.tmp")
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true

@@ -26,6 +26,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Park
@@ -39,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.FamilyMember
 import com.example.data.model.TimelineVisit
+import com.example.data.repository.FamilyDataSeed
 import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.BackgroundDark
@@ -64,6 +70,9 @@ fun TimelineView(
     visits: List<TimelineVisit>,
     selectedMemberId: String,
     onSelectMember: (String) -> Unit,
+    onCaptureLiveGps: () -> Unit = {},
+    onSimulatePing: () -> Unit = {},
+    onViewOnMap: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val selectedMember = members.find { it.id == selectedMemberId } ?: members.firstOrNull()
@@ -81,55 +90,19 @@ fun TimelineView(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Daily Movement Timeline",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        )
-                        Text(
-                            text = "Converted to 12-Hour AM/PM Local Time (Rule 4)",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = AccentCyan
-                            )
-                        )
+                // --- Top Connected Line Graph View (Today & Monthly) ---
+                if (selectedMember != null) {
+                    val monthlyHistory = remember(selectedMember.id) {
+                        FamilyDataSeed.getMonthlyMovementHistory(selectedMember.id)
                     }
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1E293B),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Today",
-                                tint = AccentCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Today's Trajectory",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                    }
+                    TimelineGraphCard(
+                        selectedMember = selectedMember,
+                        visits = memberVisits,
+                        monthlyRecords = monthlyHistory,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier
@@ -180,6 +153,147 @@ fun TimelineView(
                         }
                     }
                 }
+
+                // Live Movement Telemetry & Capture Card
+                if (selectedMember != null) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF0F172A),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(AccentEmerald)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "LIVE TELEMETRY ACTIVE",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = AccentEmerald,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 0.8.sp
+                                        )
+                                    )
+                                }
+
+                                Text(
+                                    text = "${selectedMember.lastSeenTime12h} • ${selectedMember.batteryPercent}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = TextSecondary,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = "Current Position: ${selectedMember.currentPlace}",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = AccentCyan.copy(alpha = 0.2f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onCaptureLiveGps() }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MyLocation,
+                                            contentDescription = "GPS",
+                                            tint = AccentCyan,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Record Real GPS",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = AccentCyan,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF1E293B),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onSimulatePing() }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DirectionsWalk,
+                                            contentDescription = "Simulate",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Simulate Move",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF1E293B),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                    modifier = Modifier.clickable { onViewOnMap() }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Map,
+                                            contentDescription = "Map Traversal",
+                                            tint = AccentCyan,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -193,6 +307,7 @@ fun TimelineView(
             itemsIndexed(memberVisits, key = { _, v -> v.id }) { index, visit ->
                 TimelineVisitCard(
                     visit = visit,
+                    index = index,
                     isLast = index == memberVisits.size - 1,
                     memberColor = selectedMember?.let { Color(it.colorHex) } ?: AccentCyan
                 )
@@ -204,6 +319,7 @@ fun TimelineView(
 @Composable
 fun TimelineVisitCard(
     visit: TimelineVisit,
+    index: Int = 0,
     isLast: Boolean,
     memberColor: Color
 ) {
@@ -260,27 +376,66 @@ fun TimelineVisitCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = visit.placeName,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    )
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF0F172A),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = memberColor.copy(alpha = 0.2f),
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "#${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = memberColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = visit.category,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = AccentCyan,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            text = visit.placeName,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (visit.isLiveTracking || visit.endTime12h.equals("Present", ignoreCase = true)) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = AccentEmerald.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentEmerald)
+                            ) {
+                                Text(
+                                    text = "● LIVE",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = AccentEmerald,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    ),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+                        ) {
+                            Text(
+                                text = visit.category,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = AccentCyan,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
 
@@ -349,13 +504,24 @@ fun TimelineVisitCard(
                         )
                     }
 
-                    Text(
-                        text = "24h raw: ${visit.startTime24h}-${visit.endTime24h}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = Color(0xFF64748B),
-                            fontSize = 10.sp
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (visit.latitude != null && visit.longitude != null) {
+                            Text(
+                                text = "📍 ${"%.4f".format(visit.latitude)}, ${"%.4f".format(visit.longitude)}",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = AccentCyan,
+                                    fontSize = 10.sp
+                                )
+                            )
+                        }
+                        Text(
+                            text = "24h: ${visit.startTime24h}-${visit.endTime24h}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = Color(0xFF64748B),
+                                fontSize = 10.sp
+                            )
                         )
-                    )
+                    }
                 }
             }
         }

@@ -295,4 +295,57 @@ class ExampleRobolectricTest {
         assertTrue(aiAnswer.contains("Sophia"))
         assertTrue(aiAnswer.contains("Home") || aiAnswer.contains("currently at"))
     }
+
+    /**
+     * Timeline & Traversal: Real GPS and Live Movement Recording to Timeline
+     */
+    @Test
+    fun testLiveMovementRecordingToTimeline() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = AppDatabase.getInstance(context)
+        val repository = FamilyTrackingRepository(db.locationDao())
+
+        val initialVisitCount = repository.timelineVisits.value.filter { it.userId == "user_john" }.size
+
+        // Record a live movement visit
+        val recordedVisit = repository.recordLiveTimelineVisit(
+            userId = "user_john",
+            placeName = "Golden Gate Vista Point",
+            category = "Live GPS",
+            lat = 37.8078,
+            lng = -122.4746,
+            notes = "Real GPS telemetry fix"
+        )
+
+        assertEquals("Golden Gate Vista Point", recordedVisit.placeName)
+        assertEquals("Live GPS", recordedVisit.category)
+        assertTrue(recordedVisit.isLiveTracking)
+        assertEquals("Present", recordedVisit.endTime12h)
+
+        // Verify repository timeline visits updated
+        val updatedVisits = repository.timelineVisits.value.filter { it.userId == "user_john" }
+        assertEquals(initialVisitCount + 1, updatedVisits.size)
+        assertTrue(updatedVisits.any { it.id == recordedVisit.id })
+    }
+
+    @Test
+    fun testMonthlyMovementRecordsAndGraphData() = runBlocking {
+        val johnHistory = FamilyDataSeed.getMonthlyMovementHistory("user_john")
+        assertEquals(31, johnHistory.size)
+        assertTrue(johnHistory.all { it.distanceKm > 0f })
+        assertTrue(johnHistory.all { it.stopsCount >= 2 })
+        assertTrue(johnHistory.any { it.topPlace.contains("Office", ignoreCase = true) })
+
+        val peakDay = johnHistory.maxByOrNull { it.distanceKm }
+        assertTrue(peakDay != null)
+        assertTrue(peakDay!!.distanceKm >= 40.0f)
+
+        val sarahHistory = FamilyDataSeed.getMonthlyMovementHistory("user_sarah")
+        assertEquals(31, sarahHistory.size)
+        assertTrue(sarahHistory.any { it.topPlace.contains("Hospital", ignoreCase = true) })
+
+        val emmaHistory = FamilyDataSeed.getMonthlyMovementHistory("user_emma")
+        assertEquals(31, emmaHistory.size)
+        assertTrue(emmaHistory.any { it.topPlace.contains("Oakridge", ignoreCase = true) })
+    }
 }

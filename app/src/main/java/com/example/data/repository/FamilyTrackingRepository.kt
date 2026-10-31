@@ -6,6 +6,7 @@ import com.example.data.model.FamilyMember
 import com.example.data.model.InviteContactType
 import com.example.data.model.InviteStatus
 import com.example.data.model.LocationRecord
+import com.example.data.model.MonthlyMovementDay
 import com.example.data.model.PlaceGeofence
 import com.example.data.model.TimelineVisit
 import kotlinx.coroutines.CoroutineScope
@@ -144,6 +145,16 @@ class FamilyTrackingRepository(
             locationDao.insertLocation(record)
             refreshPendingCount()
 
+            // Record into live timeline visits feed
+            recordLiveTimelineVisit(
+                userId = member.id,
+                placeName = member.currentPlace,
+                category = "Live Movement",
+                lat = newLat,
+                lng = newLng,
+                notes = "Live movement ping recorded at $currentTimeStr"
+            )
+
             val latency = (System.currentTimeMillis() - startTime) + Random.nextLong(250, 650)
             _lastSyncLatencyMs.value = latency
         }
@@ -189,8 +200,82 @@ class FamilyTrackingRepository(
             locationDao.insertLocation(record)
             refreshPendingCount()
 
+            // Record into live timeline visits feed
+            recordLiveTimelineVisit(
+                userId = member.id,
+                placeName = resolvedPlace,
+                category = "Real GPS",
+                lat = lat,
+                lng = lng,
+                notes = "Real GPS telemetry (accuracy: ±${accuracy.toInt()}m)"
+            )
+
             _lastSyncLatencyMs.value = (System.currentTimeMillis() - startTime) + 120L
         }
+    }
+
+    /**
+     * Appends or updates a live movement visit in the active timeline
+     */
+    fun recordLiveTimelineVisit(
+        userId: String,
+        placeName: String,
+        category: String,
+        lat: Double,
+        lng: Double,
+        notes: String = "Live movement recorded"
+    ): TimelineVisit {
+        val currentTimeStr = timeFormat12h.format(Date())
+        val currentVisits = _timelineVisits.value.toMutableList()
+
+        // Check if there is already an active visit for this user
+        val userVisits = currentVisits.filter { it.userId == userId }
+        val lastVisit = userVisits.lastOrNull()
+
+        // If the last visit is at the exact same place within the active window, update coords & notes
+        if (lastVisit != null && lastVisit.placeName.equals(placeName, ignoreCase = true) && lastVisit.endTime12h == "Present") {
+            val updatedLast = lastVisit.copy(
+                latitude = lat,
+                longitude = lng,
+                notes = notes
+            )
+            val idx = currentVisits.indexOfFirst { it.id == lastVisit.id }
+            if (idx != -1) currentVisits[idx] = updatedLast
+            _timelineVisits.value = currentVisits
+            return updatedLast
+        }
+
+        // Close prior visit's end time if it was "Present" or "11:59 PM"
+        if (lastVisit != null && (lastVisit.endTime12h == "Present" || lastVisit.endTime12h == "11:59 PM")) {
+            val idx = currentVisits.indexOfFirst { it.id == lastVisit.id }
+            if (idx != -1) {
+                currentVisits[idx] = lastVisit.copy(
+                    endTime12h = currentTimeStr,
+                    durationText = "Departed $currentTimeStr"
+                )
+            }
+        }
+
+        // Create new live visit item
+        val newVisit = TimelineVisit(
+            id = "live_v_${System.currentTimeMillis()}",
+            userId = userId,
+            placeName = placeName,
+            category = category,
+            startTime12h = currentTimeStr,
+            endTime12h = "Present",
+            startTime24h = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+            endTime24h = "Present",
+            durationText = "Active Now",
+            notes = notes,
+            latitude = lat,
+            longitude = lng,
+            isLiveTracking = true
+        )
+
+        currentVisits.add(newVisit)
+        _timelineVisits.value = currentVisits
+        return newVisit
     }
 
     /**
@@ -483,5 +568,12 @@ class FamilyTrackingRepository(
         _members.value = _members.value.map {
             if (it.id == memberId) it.copy(isSharingLocation = !it.isSharingLocation) else it
         }
+    }
+
+    /**
+     * Retrieve monthly movement history records for graph display
+     */
+    fun getMonthlyMovementHistory(userId: String): List<MonthlyMovementDay> {
+        return FamilyDataSeed.getMonthlyMovementHistory(userId)
     }
 }
