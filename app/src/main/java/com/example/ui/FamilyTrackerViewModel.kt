@@ -76,17 +76,6 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val outgoingInvites: StateFlow<List<FamilyInvite>> = repository.outgoingInvites
     val incomingRequests: StateFlow<List<FamilyInvite>> = repository.incomingRequests
 
-    init {
-        viewModelScope.launch {
-            combine(repository.members, repository.timelineVisits) { m, v ->
-                Pair(m, v)
-            }.collect { (m, v) ->
-                assistant.updateLiveContext(m, v)
-                _rawJsonContext.value = FamilyDataSeed.buildLocationHistoryJson(m, v)
-            }
-        }
-    }
-
     // AI Chat State
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
         listOf(
@@ -113,6 +102,17 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val statusBanner: StateFlow<String?> = _statusBanner.asStateFlow()
 
     private val timeFormat12h = SimpleDateFormat("h:mm a", Locale.getDefault())
+
+    init {
+        viewModelScope.launch {
+            combine(repository.members, repository.timelineVisits) { m, v ->
+                Pair(m, v)
+            }.collect { (m, v) ->
+                assistant.updateLiveContext(m, v)
+                _rawJsonContext.value = FamilyDataSeed.buildLocationHistoryJson(m, v)
+            }
+        }
+    }
 
     fun setSelectedTab(index: Int) {
         _selectedTab.value = index
