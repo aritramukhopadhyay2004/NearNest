@@ -1,18 +1,28 @@
+# Android / Gradle
 *.iml
-.gradle
-.kotlin
+.gradle/
+.kotlin/
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
 local.properties
+/build/
+app/build/
+*.apk
+*.aab
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE & Editor files
+.idea/
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets & Keystores (Never commit to version control)
 .env
 debug.keystore
+*.jks
+*.keystore

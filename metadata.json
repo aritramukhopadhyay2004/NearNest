@@ -1,7 +1,6 @@
 {
-  "name": "FamTrack AI",
-  "description": "AI-Powered Family Location Tracker with real-time movement telemetry, interactive map, and zero-hallucination AI Movement Assistant.",
+  "name": "NearNest (FamTrack AI)",
+  "description": "AI-Powered Family Location Tracker & Movement Assistant with real-time movement telemetry, interactive map, and zero-hallucination conversational AI powered by Google Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
-
