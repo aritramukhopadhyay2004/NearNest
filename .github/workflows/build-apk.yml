@@ -1,0 +1,76 @@
+name: Build & Update Latest APK
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'apk/**'
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Copy Built APK to apk/ Directory
+        run: |
+          mkdir -p apk
+          cp app/build/outputs/apk/debug/app-debug.apk apk/NearNest-latest.apk
+
+      - name: Commit and Push Updated APK to Repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add apk/NearNest-latest.apk
+          if git diff --staged --quiet; then
+            echo "No changes in APK binary."
+          else
+            git commit -m "chore(release): update latest APK build [skip ci]"
+            git push origin main
+          fi
+
+      - name: Publish or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: latest
+          name: "NearNest Latest Build"
+          body: |
+            ### 📲 NearNest (FamTrack AI) Latest Release
+            
+            This release is automatically generated and updated with the latest features from the `main` branch.
+            
+            - **Direct Download**: Download `NearNest-latest.apk` below.
+            - **Commit**: `${{ github.sha }}`
+          draft: false
+          prerelease: false
+          files: apk/NearNest-latest.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

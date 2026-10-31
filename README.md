@@ -8,6 +8,15 @@
 [![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%20API-8E75C2?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
 [![Room Database](https://img.shields.io/badge/Local%20DB-Room%20(SQLite)-FFA000?style=for-the-badge&logo=sqlite&logoColor=white)](https://developer.android.com/training/data-storage/room)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Download APK](https://img.shields.io/badge/Download-Latest%20APK%20(Direct)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](apk/NearNest-latest.apk)
+
+---
+
+> ### 📲 Quick Install: Latest Android APK
+> You can download the latest compiled APK directly from this repository:
+> - **Direct Download**: [**`NearNest-latest.apk`**](https://raw.githubusercontent.com/aritramukhopadhyay2004/NearNest/main/apk/NearNest-latest.apk) *(stored in [`apk/`](apk/))*
+> - **GitHub Releases**: [Latest Release](https://github.com/aritramukhopadhyay2004/NearNest/releases/tag/latest)
+> - Every push to `main` automatically triggers a GitHub Actions workflow that compiles and refreshes this APK.
 
 ---
 
