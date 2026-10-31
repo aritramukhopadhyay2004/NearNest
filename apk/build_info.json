@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-10-31T23:01:46.4538412+05:30",
-    "fileSizeBytes":  23391264,
+    "buildDate":  "2026-10-31T23:43:08.3747464+05:30",
+    "fileSizeBytes":  23391735,
     "fileSizeMb":  22.31,
-    "buildDurationSecs":  29,
+    "buildDurationSecs":  14.3,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "30b40ee",
+    "gitCommit":  "792f98e",
     "gitMessage":  [
-                       "feat: add 20-day in-place APK generator script and automated sync",
+                       "feat: rebrand project to NearNest and integrate official app logo across launcher and UI",
                        ""
                    ],
     "checkWindowDays":  20
