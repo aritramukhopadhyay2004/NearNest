@@ -1,0 +1,14 @@
+﻿{
+    "apkFileName":  "NearNest-latest.apk",
+    "buildDate":  "2026-10-31T22:43:13.6261976+05:30",
+    "fileSizeBytes":  23128935,
+    "fileSizeMb":  22.06,
+    "buildDurationSecs":  30.2,
+    "triggerReason":  "Force build requested (-Force).",
+    "gitCommit":  "452bf11",
+    "gitMessage":  [
+                       "ci: automate latest APK availability in apk/ folder and GitHub Releases via GitHub Actions",
+                       ""
+                   ],
+    "checkWindowDays":  20
+}

@@ -22,3 +22,4 @@ This directory always provides the latest compiled debug build of **NearNest**.
 
 ### Automated Updates
 This APK is automatically built and updated by GitHub Actions on every push to the `main` branch.
+
