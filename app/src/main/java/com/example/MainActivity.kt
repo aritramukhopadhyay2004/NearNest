@@ -92,6 +92,8 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     val pendingSyncCount by viewModel.pendingSyncCount.collectAsState()
     val lastSyncLatencyMs by viewModel.lastSyncLatencyMs.collectAsState()
     val isBackgroundTrackingActive by viewModel.isBackgroundTrackingActive.collectAsState()
+    val outgoingInvites by viewModel.outgoingInvites.collectAsState()
+    val incomingRequests by viewModel.incomingRequests.collectAsState()
 
     val chatMessages by viewModel.chatMessages.collectAsState()
     val isAiThinking by viewModel.isAiThinking.collectAsState()
@@ -311,10 +313,21 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                     isOfflineMode = isOfflineMode,
                     pendingSyncCount = pendingSyncCount,
                     isBackgroundTrackingActive = isBackgroundTrackingActive,
+                    outgoingInvites = outgoingInvites,
+                    incomingRequests = incomingRequests,
                     onToggleOfflineMode = { viewModel.toggleOfflineMode() },
                     onSyncOfflineCache = { viewModel.syncOfflineLocations() },
                     onToggleBackgroundTracking = { viewModel.toggleBackgroundTracking() },
-                    onPurgeTtlRecords = { viewModel.purgeTtlOldRecords() }
+                    onPurgeTtlRecords = { viewModel.purgeTtlOldRecords() },
+                    onSendInvite = { contact, type, name, relation, colorHex ->
+                        viewModel.sendFamilyInvite(contact, type, name, relation, colorHex)
+                    },
+                    onAcceptIncomingRequest = { viewModel.acceptIncomingRequest(it) },
+                    onDeclineIncomingRequest = { viewModel.declineIncomingRequest(it) },
+                    onSimulateTargetDeviceAccept = { viewModel.simulateTargetDeviceAcceptance(it) },
+                    onCancelOutgoingInvite = { viewModel.cancelOutgoingInvite(it) },
+                    onRemoveMember = { viewModel.removeFamilyMember(it) },
+                    onToggleSharing = { viewModel.toggleMemberLocationSharing(it) }
                 )
             }
 

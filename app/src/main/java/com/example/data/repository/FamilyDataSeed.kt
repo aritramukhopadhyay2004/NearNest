@@ -200,11 +200,14 @@ object FamilyDataSeed {
     /**
      * Builds the JSON location history string strictly according to the format required by the AI Assistant prompt
      */
-    fun buildLocationHistoryJson(): String {
+    fun buildLocationHistoryJson(
+        membersList: List<FamilyMember> = familyMembers,
+        visitsList: List<TimelineVisit> = allTimelineVisits
+    ): String {
         val root = JSONObject()
         val membersArray = JSONArray()
 
-        for (member in familyMembers) {
+        for (member in membersList) {
             val memberObj = JSONObject()
             memberObj.put("id", member.id)
             memberObj.put("name", member.name)
@@ -214,7 +217,7 @@ object FamilyDataSeed {
             memberObj.put("last_seen", member.lastSeenTime12h)
 
             val timelineArray = JSONArray()
-            val visits = allTimelineVisits.filter { it.userId == member.id }
+            val visits = visitsList.filter { it.userId == member.id }
             for (v in visits) {
                 val visitObj = JSONObject()
                 visitObj.put("place", v.placeName)

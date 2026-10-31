@@ -9,7 +9,9 @@ import com.example.data.audio.AudioRecordingManager
 import com.example.data.local.AppDatabase
 import com.example.data.location.LocationServiceManager
 import com.example.data.model.ChatMessage
+import com.example.data.model.FamilyInvite
 import com.example.data.model.FamilyMember
+import com.example.data.model.InviteContactType
 import com.example.data.model.MessageSender
 import com.example.data.model.PlaceGeofence
 import com.example.data.model.TimelineVisit
@@ -18,6 +20,7 @@ import com.example.data.repository.FamilyTrackingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,6 +71,21 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val pendingSyncCount: StateFlow<Int> = repository.pendingSyncCount
     val lastSyncLatencyMs: StateFlow<Long> = repository.lastSyncLatencyMs
     val isBackgroundTrackingActive: StateFlow<Boolean> = repository.isBackgroundTrackingActive
+
+    // Invites and Join Requests
+    val outgoingInvites: StateFlow<List<FamilyInvite>> = repository.outgoingInvites
+    val incomingRequests: StateFlow<List<FamilyInvite>> = repository.incomingRequests
+
+    init {
+        viewModelScope.launch {
+            combine(repository.members, repository.timelineVisits) { m, v ->
+                Pair(m, v)
+            }.collect { (m, v) ->
+                assistant.updateLiveContext(m, v)
+                _rawJsonContext.value = FamilyDataSeed.buildLocationHistoryJson(m, v)
+            }
+        }
+    }
 
     // AI Chat State
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
@@ -166,7 +184,8 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
                 text = response.answer,
                 timestamp12h = timeFormat12h.format(Date()),
                 isCoolingDownAlert = response.isRateLimited,
-                isSecurityRefusal = response.isSecurityRefusal
+                isSecurityRefusal = response.isSecurityRefusal,
+                isGroundingVerified = response.mapsGroundingUsed
             )
             _chatMessages.value = _chatMessages.value + assistantMsg
             _isAiThinking.value = false
@@ -359,5 +378,88 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
                 triggerLiveLocationPing(targetId)
             }
         }
+    }
+
+    /**
+     * Send family invitation by email or phone
+     */
+    fun sendFamilyInvite(
+        contact: String,
+        type: InviteContactType,
+        name: String,
+        relation: String,
+        colorHex: Long = 0xFF8B5CF6
+    ) {
+        val trimmedContact = contact.trim()
+        val trimmedName = name.trim()
+        if (trimmedContact.isEmpty() || trimmedName.isEmpty()) {
+            _statusBanner.value = "Please provide both recipient name and email/phone."
+            return
+        }
+
+        repository.sendFamilyInvite(trimmedContact, type, trimmedName, relation, colorHex)
+        _statusBanner.value = "Invitation sent to $trimmedName ($trimmedContact). Awaiting acceptance on their device."
+    }
+
+    /**
+     * Accept an incoming family join request
+     */
+    fun acceptIncomingRequest(inviteId: String) {
+        val newMember = repository.acceptIncomingRequest(inviteId)
+        if (newMember != null) {
+            _statusBanner.value = "✓ ${newMember.name} (${newMember.relation}) accepted and joined your Family Circle! Now sharing live locations & timelines."
+            _selectedMemberId.value = newMember.id
+        }
+    }
+
+    /**
+     * Decline an incoming family join request
+     */
+    fun declineIncomingRequest(inviteId: String) {
+        repository.declineIncomingRequest(inviteId)
+        _statusBanner.value = "Declined invitation request."
+    }
+
+    /**
+     * Simulate target device receiving and accepting the invite
+     */
+    fun simulateTargetDeviceAcceptance(inviteId: String) {
+        val newMember = repository.simulateTargetDeviceAccept(inviteId)
+        if (newMember != null) {
+            _statusBanner.value = "✓ ${newMember.name} accepted the invite on their device! Profiles are linked and sharing timelines."
+            _selectedMemberId.value = newMember.id
+        }
+    }
+
+    /**
+     * Cancel an outgoing invite
+     */
+    fun cancelOutgoingInvite(inviteId: String) {
+        repository.cancelOutgoingInvite(inviteId)
+        _statusBanner.value = "Invitation cancelled."
+    }
+
+    /**
+     * Remove member from Family Circle
+     */
+    fun removeFamilyMember(memberId: String) {
+        val member = familyMembers.value.find { it.id == memberId }
+        if (member != null) {
+            repository.removeFamilyMember(memberId)
+            if (_selectedMemberId.value == memberId) {
+                _selectedMemberId.value = familyMembers.value.firstOrNull { it.id != memberId }?.id ?: "user_john"
+            }
+            _statusBanner.value = "Removed ${member.name} from your Family Circle."
+        }
+    }
+
+    /**
+     * Toggle location sharing for a family member
+     */
+    fun toggleMemberLocationSharing(memberId: String) {
+        repository.toggleMemberLocationSharing(memberId)
+        val member = familyMembers.value.find { it.id == memberId }
+        val newState = member?.isSharingLocation ?: true
+        _statusBanner.value = if (newState) "${member?.name}'s location sharing active." else "${member?.name}'s location sharing paused."
     }
 }

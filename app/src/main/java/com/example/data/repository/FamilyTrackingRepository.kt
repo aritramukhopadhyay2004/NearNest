@@ -1,7 +1,10 @@
 package com.example.data.repository
 
 import com.example.data.local.LocationDao
+import com.example.data.model.FamilyInvite
 import com.example.data.model.FamilyMember
+import com.example.data.model.InviteContactType
+import com.example.data.model.InviteStatus
 import com.example.data.model.LocationRecord
 import com.example.data.model.PlaceGeofence
 import com.example.data.model.TimelineVisit
@@ -14,6 +17,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlin.random.Random
 
 class FamilyTrackingRepository(
@@ -41,6 +45,30 @@ class FamilyTrackingRepository(
 
     private val _isBackgroundTrackingActive = MutableStateFlow(true)
     val isBackgroundTrackingActive: StateFlow<Boolean> = _isBackgroundTrackingActive.asStateFlow()
+
+    // Outgoing member invites (sent by the user)
+    private val _outgoingInvites = MutableStateFlow<List<FamilyInvite>>(emptyList())
+    val outgoingInvites: StateFlow<List<FamilyInvite>> = _outgoingInvites.asStateFlow()
+
+    // Incoming join requests (sent to the user's logged-in email/phone from other family members)
+    private val _incomingRequests = MutableStateFlow<List<FamilyInvite>>(
+        listOf(
+            FamilyInvite(
+                id = "invite_sophia_req",
+                senderId = "user_sophia",
+                senderName = "Sophia",
+                recipientContact = "john.famtrack@example.com",
+                contactType = InviteContactType.EMAIL,
+                recipientName = "John",
+                relation = "Spouse",
+                status = InviteStatus.PENDING,
+                timestamp12h = "10:15 AM",
+                colorHex = 0xFF8B5CF6,
+                inviteCode = "NEST-9042"
+            )
+        )
+    )
+    val incomingRequests: StateFlow<List<FamilyInvite>> = _incomingRequests.asStateFlow()
 
     private val timeFormat12h = SimpleDateFormat("h:mm a", Locale.getDefault())
 
@@ -190,5 +218,270 @@ class FamilyTrackingRepository(
 
     suspend fun getTotalStoredRecords(): Int {
         return locationDao.getTotalRecordCount()
+    }
+
+    /**
+     * Send a new family invitation via email or phone
+     */
+    fun sendFamilyInvite(
+        contact: String,
+        type: InviteContactType,
+        recipientName: String,
+        relation: String,
+        colorHex: Long = 0xFF8B5CF6
+    ): FamilyInvite {
+        val invite = FamilyInvite(
+            id = "invite_${UUID.randomUUID().toString().take(8)}",
+            senderId = "user_john",
+            senderName = "John",
+            recipientContact = contact.trim(),
+            contactType = type,
+            recipientName = recipientName.trim(),
+            relation = relation.trim().ifEmpty { "Family Member" },
+            status = InviteStatus.PENDING,
+            timestamp12h = timeFormat12h.format(Date()),
+            colorHex = colorHex
+        )
+        _outgoingInvites.value = listOf(invite) + _outgoingInvites.value
+        return invite
+    }
+
+    /**
+     * Accept an incoming family join request
+     * Adds the sender to the user's family circle and shares records & timelines
+     */
+    fun acceptIncomingRequest(inviteId: String): FamilyMember? {
+        val invite = _incomingRequests.value.find { it.id == inviteId } ?: return null
+
+        _incomingRequests.value = _incomingRequests.value.filterNot { it.id == inviteId }
+
+        val newMemberId = "user_${invite.senderName.lowercase().replace(" ", "_")}"
+
+        val existing = _members.value.find { it.id == newMemberId }
+        if (existing != null) return existing
+
+        val newMember = FamilyMember(
+            id = newMemberId,
+            name = invite.senderName,
+            relation = invite.relation,
+            colorHex = invite.colorHex,
+            batteryPercent = 91,
+            isCharging = false,
+            currentPlace = "Home",
+            currentLat = 37.7749,
+            currentLng = -122.4194,
+            lastSeenTime12h = timeFormat12h.format(Date()),
+            isOnline = true,
+            isSharingLocation = true,
+            email = if (invite.contactType == InviteContactType.EMAIL) invite.recipientContact else null,
+            phone = if (invite.contactType == InviteContactType.PHONE) invite.recipientContact else null
+        )
+
+        _members.value = _members.value + newMember
+
+        val initialVisits = listOf(
+            TimelineVisit(
+                id = "v_${newMemberId}_1",
+                userId = newMemberId,
+                placeName = "Home",
+                category = "Residence",
+                startTime12h = "12:00 AM",
+                endTime12h = "8:30 AM",
+                startTime24h = "00:00",
+                endTime24h = "08:30",
+                durationText = "8h 30m",
+                notes = "Morning routine"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_2",
+                userId = newMemberId,
+                placeName = "Central Supermarket",
+                category = "Grocery Store",
+                startTime12h = "9:15 AM",
+                endTime12h = "10:00 AM",
+                startTime24h = "09:15",
+                endTime24h = "10:00",
+                durationText = "45m",
+                notes = "Shopping"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_3",
+                userId = newMemberId,
+                placeName = "City Library",
+                category = "Library",
+                startTime12h = "10:30 AM",
+                endTime12h = "1:45 PM",
+                startTime24h = "10:30",
+                endTime24h = "13:45",
+                durationText = "3h 15m",
+                notes = "Study & reading"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_4",
+                userId = newMemberId,
+                placeName = "Home",
+                category = "Residence",
+                startTime12h = "2:15 PM",
+                endTime12h = "11:59 PM",
+                startTime24h = "14:15",
+                endTime24h = "23:59",
+                durationText = "Afternoon & Evening",
+                notes = "Resting at home"
+            )
+        )
+        _timelineVisits.value = _timelineVisits.value + initialVisits
+
+        scope.launch {
+            val record = LocationRecord(
+                userId = newMember.id,
+                userName = newMember.name,
+                latitude = newMember.currentLat,
+                longitude = newMember.currentLng,
+                placeName = newMember.currentPlace,
+                category = "Residence",
+                timestampEpochMillis = System.currentTimeMillis(),
+                timestamp12h = newMember.lastSeenTime12h,
+                batteryPercent = newMember.batteryPercent,
+                accuracyMeters = 5.0f,
+                isSynced = true
+            )
+            locationDao.insertLocation(record)
+            refreshPendingCount()
+        }
+
+        return newMember
+    }
+
+    /**
+     * Decline an incoming request
+     */
+    fun declineIncomingRequest(inviteId: String) {
+        _incomingRequests.value = _incomingRequests.value.filterNot { it.id == inviteId }
+    }
+
+    /**
+     * Cancel an outgoing invite
+     */
+    fun cancelOutgoingInvite(inviteId: String) {
+        _outgoingInvites.value = _outgoingInvites.value.filterNot { it.id == inviteId }
+    }
+
+    /**
+     * Simulate target device receiving and accepting the invite
+     * (Simulates the profile logged in on their device accepting the request)
+     */
+    fun simulateTargetDeviceAccept(inviteId: String): FamilyMember? {
+        val invite = _outgoingInvites.value.find { it.id == inviteId } ?: return null
+
+        _outgoingInvites.value = _outgoingInvites.value.map {
+            if (it.id == inviteId) it.copy(status = InviteStatus.ACCEPTED) else it
+        }
+
+        val newMemberId = "user_${invite.recipientName.lowercase().replace(" ", "_")}_${UUID.randomUUID().toString().take(4)}"
+
+        val newMember = FamilyMember(
+            id = newMemberId,
+            name = invite.recipientName,
+            relation = invite.relation,
+            colorHex = invite.colorHex,
+            batteryPercent = (75..95).random(),
+            isCharging = false,
+            currentPlace = "Home",
+            currentLat = 37.7749 + Random.nextDouble(-0.005, 0.005),
+            currentLng = -122.4194 + Random.nextDouble(-0.005, 0.005),
+            lastSeenTime12h = timeFormat12h.format(Date()),
+            isOnline = true,
+            isSharingLocation = true,
+            email = if (invite.contactType == InviteContactType.EMAIL) invite.recipientContact else null,
+            phone = if (invite.contactType == InviteContactType.PHONE) invite.recipientContact else null
+        )
+
+        _members.value = _members.value + newMember
+
+        val initialVisits = listOf(
+            TimelineVisit(
+                id = "v_${newMemberId}_1",
+                userId = newMemberId,
+                placeName = "Home",
+                category = "Residence",
+                startTime12h = "12:00 AM",
+                endTime12h = "9:00 AM",
+                startTime24h = "00:00",
+                endTime24h = "09:00",
+                durationText = "9h 00m"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_2",
+                userId = newMemberId,
+                placeName = "Westside Community Park",
+                category = "Park",
+                startTime12h = "9:30 AM",
+                endTime12h = "11:15 AM",
+                startTime24h = "09:30",
+                endTime24h = "11:15",
+                durationText = "1h 45m",
+                notes = "Outdoor activity"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_3",
+                userId = newMemberId,
+                placeName = "Downtown Pharmacy",
+                category = "Pharmacy",
+                startTime12h = "11:45 AM",
+                endTime12h = "12:15 PM",
+                startTime24h = "11:45",
+                endTime24h = "12:15",
+                durationText = "30m"
+            ),
+            TimelineVisit(
+                id = "v_${newMemberId}_4",
+                userId = newMemberId,
+                placeName = "Home",
+                category = "Residence",
+                startTime12h = "12:45 PM",
+                endTime12h = "11:59 PM",
+                startTime24h = "12:45",
+                endTime24h = "23:59",
+                durationText = "Afternoon & Evening"
+            )
+        )
+        _timelineVisits.value = _timelineVisits.value + initialVisits
+
+        scope.launch {
+            val record = LocationRecord(
+                userId = newMember.id,
+                userName = newMember.name,
+                latitude = newMember.currentLat,
+                longitude = newMember.currentLng,
+                placeName = newMember.currentPlace,
+                category = "Residence",
+                timestampEpochMillis = System.currentTimeMillis(),
+                timestamp12h = newMember.lastSeenTime12h,
+                batteryPercent = newMember.batteryPercent,
+                accuracyMeters = 4.8f,
+                isSynced = true
+            )
+            locationDao.insertLocation(record)
+            refreshPendingCount()
+        }
+
+        return newMember
+    }
+
+    /**
+     * Remove a member from the family circle
+     */
+    fun removeFamilyMember(memberId: String) {
+        _members.value = _members.value.filterNot { it.id == memberId }
+        _timelineVisits.value = _timelineVisits.value.filterNot { it.userId == memberId }
+    }
+
+    /**
+     * Toggle location sharing for a member
+     */
+    fun toggleMemberLocationSharing(memberId: String) {
+        _members.value = _members.value.map {
+            if (it.id == memberId) it.copy(isSharingLocation = !it.isSharingLocation) else it
+        }
     }
 }

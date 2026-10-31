@@ -204,4 +204,95 @@ class ExampleRobolectricTest {
         assertEquals(com.example.data.assistant.AiModelType.GEMINI_3_8_LIVE.modelId, liveResp.modelUsed)
         assertTrue(liveResp.answer.contains("Michael"))
     }
+
+    /**
+     * Family & Zones: Send Member Invitation by Email or Phone
+     */
+    @Test
+    fun testFamilyMemberInviteByEmailAndPhone() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = AppDatabase.getInstance(context)
+        val repository = FamilyTrackingRepository(db.locationDao())
+
+        // Send invite via Email
+        val emailInvite = repository.sendFamilyInvite(
+            contact = "lucas.child@example.com",
+            type = com.example.data.model.InviteContactType.EMAIL,
+            recipientName = "Lucas",
+            relation = "Son"
+        )
+        assertEquals("Lucas", emailInvite.recipientName)
+        assertEquals("lucas.child@example.com", emailInvite.recipientContact)
+        assertEquals(com.example.data.model.InviteStatus.PENDING, emailInvite.status)
+        assertTrue(repository.outgoingInvites.value.any { it.id == emailInvite.id })
+
+        // Send invite via Phone
+        val phoneInvite = repository.sendFamilyInvite(
+            contact = "+1 555-0199",
+            type = com.example.data.model.InviteContactType.PHONE,
+            recipientName = "Grandma Rose",
+            relation = "Grandmother"
+        )
+        assertEquals("Grandma Rose", phoneInvite.recipientName)
+        assertEquals("+1 555-0199", phoneInvite.recipientContact)
+        assertTrue(repository.outgoingInvites.value.any { it.id == phoneInvite.id })
+    }
+
+    /**
+     * Family & Zones: Accept Incoming Request and Sync Timelines
+     */
+    @Test
+    fun testAcceptIncomingFamilyRequestAndTimelineSync() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = AppDatabase.getInstance(context)
+        val repository = FamilyTrackingRepository(db.locationDao())
+
+        val incoming = repository.incomingRequests.value
+        assertTrue("Must have sample incoming join request", incoming.isNotEmpty())
+
+        val req = incoming.first()
+        val initialMemberCount = repository.members.value.size
+
+        val acceptedMember = repository.acceptIncomingRequest(req.id)
+        assertTrue(acceptedMember != null)
+        assertEquals(req.senderName, acceptedMember?.name)
+        assertEquals(initialMemberCount + 1, repository.members.value.size)
+
+        // Verify member has visits added to repository
+        val memberVisits = repository.timelineVisits.value.filter { it.userId == acceptedMember?.id }
+        assertTrue("Accepted member must have timeline visits", memberVisits.isNotEmpty())
+
+        // Verify incoming request is no longer pending
+        assertFalse(repository.incomingRequests.value.any { it.id == req.id })
+    }
+
+    /**
+     * Family & Zones: Simulate Target Device Acceptance and Dynamic AI Query
+     */
+    @Test
+    fun testSimulateTargetDeviceAcceptanceAndAiAssistant() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = AppDatabase.getInstance(context)
+        val repository = FamilyTrackingRepository(db.locationDao())
+
+        val invite = repository.sendFamilyInvite(
+            contact = "sophia@example.com",
+            type = com.example.data.model.InviteContactType.EMAIL,
+            recipientName = "Sophia",
+            relation = "Spouse"
+        )
+
+        // Target device receives and accepts
+        val joinedMember = repository.simulateTargetDeviceAccept(invite.id)
+        assertTrue(joinedMember != null)
+        assertEquals("Sophia", joinedMember?.name)
+
+        // Update assistant live context with updated repository data
+        assistant.updateLiveContext(repository.members.value, repository.timelineVisits.value)
+
+        // Query AI Assistant about the newly joined family member
+        val aiAnswer = assistant.evaluateDeterministically("Where is Sophia right now?")
+        assertTrue(aiAnswer.contains("Sophia"))
+        assertTrue(aiAnswer.contains("Home") || aiAnswer.contains("currently at"))
+    }
 }

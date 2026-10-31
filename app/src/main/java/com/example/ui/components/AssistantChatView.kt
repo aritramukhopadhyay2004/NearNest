@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GraphicEq
@@ -65,9 +66,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.assistant.AiModelType
@@ -673,20 +678,63 @@ fun AssistantChatView(
     }
 }
 
+/**
+ * Converts markdown-style bullets and bold tags into high-contrast formatted text for mobile display
+ */
+fun formatChatMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        val lines = text.lines()
+        lines.forEachIndexed { lineIdx, rawLine ->
+            var line = rawLine.trim()
+
+            // Check for bullet prefixes (*, -, •)
+            val isBullet = line.startsWith("* ") || line.startsWith("- ") || line.startsWith("• ")
+            if (isBullet) {
+                withStyle(SpanStyle(color = AccentCyan, fontWeight = FontWeight.Bold)) {
+                    append("  •  ")
+                }
+                line = line.drop(2).trim()
+            }
+
+            // Split by ** to extract bold segments without complex regex ranges
+            val boldParts = line.split("**")
+            boldParts.forEachIndexed { idx, part ->
+                if (part.isNotEmpty()) {
+                    if (idx % 2 == 1) {
+                        // Odd indices are inside **...**
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                            append(part)
+                        }
+                    } else {
+                        // Even indices are normal text
+                        append(part)
+                    }
+                }
+            }
+
+            if (lineIdx < lines.size - 1) {
+                append("\n")
+            }
+        }
+    }
+}
+
 @Composable
 fun ChatMessageItem(message: ChatMessage) {
     val isUser = message.sender == MessageSender.USER
+    val annotatedText = remember(message.text) { formatChatMarkdown(message.text) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
             .testTag("message_${message.id}"),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         if (!isUser) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .background(
                         when {
@@ -717,31 +765,80 @@ fun ChatMessageItem(message: ChatMessage) {
 
         Card(
             shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
+                topStart = 18.dp,
+                topEnd = 18.dp,
+                bottomStart = if (isUser) 18.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 18.dp
             ),
             colors = CardDefaults.cardColors(
                 containerColor = when {
-                    isUser -> Color(0xFF0369A1)
+                    isUser -> Color(0xFF0284C7)
                     message.isCoolingDownAlert -> Color(0xFF451A03)
                     message.isSecurityRefusal -> Color(0xFF4C0519)
-                    else -> SurfaceCardDark
+                    else -> Color(0xFF1E293B)
                 }
             ),
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
                 when {
-                    isUser -> Color(0xFF0284C7)
+                    isUser -> Color(0xFF38BDF8).copy(alpha = 0.5f)
                     message.isCoolingDownAlert -> AccentAmber
                     message.isSecurityRefusal -> AccentRose
-                    else -> Color(0xFF374151)
+                    else -> Color(0xFF334155)
                 }
             ),
-            modifier = Modifier.widthIn(max = 310.dp)
+            modifier = Modifier.widthIn(min = 100.dp, max = 340.dp)
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                // Header tag for Assistant
+                if (!isUser) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "FamTrack AI",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = AccentCyan,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+
+                        if (message.isGroundingVerified) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Verified Grounding",
+                                    tint = AccentEmerald,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Maps Grounded",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = AccentEmerald,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 10.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (message.isCoolingDownAlert) {
                     Text(
                         text = "TC05: Rate Limit Active",
@@ -764,11 +861,11 @@ fun ChatMessageItem(message: ChatMessage) {
                     Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                // Main Answer Content: High contrast text for all ages (Rule 6)
+                // Styled Markdown Message Content with High Contrast (Rule 6)
                 Text(
-                    text = message.text,
+                    text = annotatedText,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        color = Color.White,
+                        color = if (isUser) Color.White else Color(0xFFF1F5F9),
                         fontSize = 15.sp,
                         lineHeight = 22.sp
                     )
@@ -779,8 +876,8 @@ fun ChatMessageItem(message: ChatMessage) {
                 Text(
                     text = message.timestamp12h,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = if (isUser) Color(0xFFBAE6FD) else TextSecondary,
-                        fontSize = 11.sp
+                        color = if (isUser) Color(0xFFE0F2FE) else Color(0xFF94A3B8),
+                        fontSize = 10.sp
                     ),
                     modifier = Modifier.align(Alignment.End)
                 )

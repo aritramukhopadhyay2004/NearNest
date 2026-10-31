@@ -18,7 +18,43 @@ data class FamilyMember(
     val currentLng: Double,
     val lastSeenTime12h: String,
     val isOnline: Boolean = true,
-    val isSharingLocation: Boolean = true
+    val isSharingLocation: Boolean = true,
+    val email: String? = null,
+    val phone: String? = null
+)
+
+/**
+ * Family invitation contact method
+ */
+enum class InviteContactType {
+    EMAIL,
+    PHONE
+}
+
+/**
+ * Status of family invitation / join request
+ */
+enum class InviteStatus {
+    PENDING,
+    ACCEPTED,
+    DECLINED
+}
+
+/**
+ * Family Invitation / Join Request
+ */
+data class FamilyInvite(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val recipientContact: String, // email or phone number
+    val contactType: InviteContactType,
+    val recipientName: String,
+    val relation: String,
+    val status: InviteStatus = InviteStatus.PENDING,
+    val timestamp12h: String,
+    val colorHex: Long = 0xFF8B5CF6,
+    val inviteCode: String = "NEST-${(1000..9999).random()}"
 )
 
 /**
@@ -80,7 +116,8 @@ data class ChatMessage(
     val timestamp12h: String,
     val isCoolingDownAlert: Boolean = false,
     val isSecurityRefusal: Boolean = false,
-    val queryTargetName: String? = null
+    val queryTargetName: String? = null,
+    val isGroundingVerified: Boolean = false
 )
 
 enum class MessageSender {
