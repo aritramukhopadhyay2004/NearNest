@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -97,6 +98,8 @@ fun FamilySafeZonesView(
     isBackgroundTrackingActive: Boolean,
     outgoingInvites: List<FamilyInvite> = emptyList(),
     incomingRequests: List<FamilyInvite> = emptyList(),
+    currentUserSession: com.example.data.auth.UserSession? = null,
+    onSignOut: () -> Unit = {},
     onToggleOfflineMode: () -> Unit,
     onSyncOfflineCache: () -> Unit,
     onToggleBackgroundTracking: () -> Unit,
@@ -131,44 +134,61 @@ fun FamilySafeZonesView(
     ) {
         // --- 1. Top Hub: Active Account Profile & Circle Header ---
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = Color(0xFF0F172A),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+            border = BorderStroke(1.dp, Color(0xFF1E293B)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
-                            .background(AccentCyan.copy(alpha = 0.2f)),
+                            .background(Color(currentUserSession?.avatarColorHex ?: 0xFF0284C7)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "User Profile",
-                            tint = AccentCyan,
-                            modifier = Modifier.size(26.dp)
+                        Text(
+                            text = (currentUserSession?.displayName?.take(1) ?: "U").uppercase(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Signed in as John (Primary)",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Signed in as ${currentUserSession?.displayName ?: "Device User"}",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             )
-                        )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = AccentEmerald.copy(alpha = 0.2f),
+                                border = BorderStroke(0.5.dp, AccentEmerald)
+                            ) {
+                                Text(
+                                    text = if (currentUserSession?.authMethod == com.example.data.auth.AuthMethod.PHONE_SMS) "SMS" else "Gmail",
+                                    color = AccentEmerald,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                         Text(
-                            text = "john.nearnest@example.com • ID: NEST-78",
+                            text = "${currentUserSession?.contact ?: "Active Session"} • ID: ${currentUserSession?.familyNestCode ?: "NEST-4821"}",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 fontSize = 11.sp
@@ -177,26 +197,47 @@ fun FamilySafeZonesView(
                     }
                 }
 
-                Button(
-                    onClick = { isInviteExpanded = !isInviteExpanded },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isInviteExpanded) Color(0xFF334155) else AccentCyan,
-                        contentColor = if (isInviteExpanded) Color.White else Color(0xFF00363A)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isInviteExpanded) Icons.Default.Close else Icons.Default.PersonAdd,
-                        contentDescription = "Invite",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isInviteExpanded) "Close" else "Invite Member",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
+                    Button(
+                        onClick = { isInviteExpanded = !isInviteExpanded },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isInviteExpanded) Color(0xFF334155) else AccentCyan,
+                            contentColor = if (isInviteExpanded) Color.White else Color(0xFF00363A)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isInviteExpanded) Icons.Default.Close else Icons.Default.PersonAdd,
+                            contentDescription = "Invite",
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isInviteExpanded) "Close" else "Invite Member",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onSignOut,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.height(38.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRose)
+                    ) {
+                        Text(text = "Sign Out", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

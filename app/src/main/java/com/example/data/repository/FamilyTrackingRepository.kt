@@ -554,6 +554,18 @@ class FamilyTrackingRepository(
     }
 
     /**
+     * Register or update the authenticated local device user as a family member
+     */
+    fun registerUserAsFamilyMember(member: FamilyMember) {
+        val existing = _members.value.find { it.id == member.id }
+        if (existing == null) {
+            _members.value = listOf(member) + _members.value
+        } else {
+            _members.value = _members.value.map { if (it.id == member.id) member else it }
+        }
+    }
+
+    /**
      * Remove a member from the family circle
      */
     fun removeFamilyMember(memberId: String) {

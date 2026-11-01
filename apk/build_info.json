@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-11-01T20:25:15.2011436+05:30",
+    "buildDate":  "2026-11-01T21:56:51.1203792+05:30",
     "fileSizeBytes":  23391735,
     "fileSizeMb":  22.31,
-    "buildDurationSecs":  14.7,
+    "buildDurationSecs":  40,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "fc815df",
+    "gitCommit":  "6c23eb9",
     "gitMessage":  [
-                       "feat: add line-connected trajectory graph and monthly movement record to Timeline tab",
+                       "feat: add 5-min breadcrumb traversal map with auto-detected stops to Timeline tab",
                        ""
                    ],
     "checkWindowDays":  20

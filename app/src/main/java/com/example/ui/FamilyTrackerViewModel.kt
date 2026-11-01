@@ -8,6 +8,11 @@ import com.example.data.assistant.AiMovementAssistant
 import com.example.data.audio.AudioRecordingManager
 import com.example.data.local.AppDatabase
 import com.example.data.location.LocationServiceManager
+import com.example.data.auth.AuthManager
+import com.example.data.auth.AuthMethod
+import com.example.data.auth.AuthState
+import com.example.data.auth.OtpChallenge
+import com.example.data.auth.UserSession
 import com.example.data.model.ChatMessage
 import com.example.data.model.FamilyInvite
 import com.example.data.model.FamilyMember
@@ -35,6 +40,14 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val assistant = AiMovementAssistant()
     val locationServiceManager = LocationServiceManager(application)
     val audioRecordingManager = AudioRecordingManager(application)
+    val authManager = AuthManager(application, repository)
+
+    // User Authentication State
+    val authState: StateFlow<AuthState> = authManager.authState
+    val currentUserSession: StateFlow<UserSession?> = authManager.currentSession
+    val activeOtpChallenge: StateFlow<OtpChallenge?> = authManager.activeChallenge
+    val authError: StateFlow<String?> = authManager.authError
+    val lastDeliveredOtpMessage: StateFlow<String?> = authManager.lastDeliveredOtpMessage
 
     // Navigation & Tab State
     private val _selectedTab = MutableStateFlow(0)
@@ -507,5 +520,70 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         val member = familyMembers.value.find { it.id == memberId }
         val newState = member?.isSharingLocation ?: true
         _statusBanner.value = if (newState) "${member?.name}'s location sharing active." else "${member?.name}'s location sharing paused."
+    }
+
+    // ==========================================
+    // Authentication & Onboarding Actions
+    // ==========================================
+
+    fun requestPhoneOtp(
+        rawPhone: String,
+        countryCode: String = "+91",
+        userName: String = "",
+        nestCode: String = "NEST-4821"
+    ): Boolean {
+        val success = authManager.requestPhoneOtp(rawPhone, countryCode, userName, nestCode)
+        if (success) {
+            _statusBanner.value = "SMS OTP code generated and dispatched."
+        }
+        return success
+    }
+
+    fun requestGoogleOtp(
+        rawEmail: String,
+        userName: String = "",
+        nestCode: String = "NEST-4821"
+    ): Boolean {
+        val success = authManager.requestGoogleOtp(rawEmail, userName, nestCode)
+        if (success) {
+            _statusBanner.value = "Google Account verification code dispatched via Gmail."
+        }
+        return success
+    }
+
+    fun verifyOtp(enteredCode: String, customDisplayName: String = ""): Boolean {
+        val success = authManager.verifyOtp(enteredCode, customDisplayName)
+        if (success) {
+            _statusBanner.value = "Welcome to NearNest! Device authenticated."
+            currentUserSession.value?.let { session ->
+                _selectedMemberId.value = session.userId
+            }
+        }
+        return success
+    }
+
+    fun resendActiveOtp(): Boolean {
+        val success = authManager.resendActiveOtp()
+        if (success) {
+            _statusBanner.value = "A fresh verification code has been dispatched."
+        }
+        return success
+    }
+
+    fun cancelOtpVerification() {
+        authManager.cancelOtpVerification()
+    }
+
+    fun signOut() {
+        authManager.signOut()
+        _statusBanner.value = "Signed out of NearNest session."
+    }
+
+    fun quickDemoLogin(method: AuthMethod) {
+        authManager.quickDemoLogin(method)
+        _statusBanner.value = "Logged in via fast test session (${method.displayName})."
+        currentUserSession.value?.let { session ->
+            _selectedMemberId.value = session.userId
+        }
     }
 }

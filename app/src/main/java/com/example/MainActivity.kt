@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,11 +28,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.People
@@ -48,6 +49,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,12 +61,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.auth.AuthState
 import com.example.ui.FamilyTrackerViewModel
 import com.example.ui.components.AssistantChatView
+import com.example.ui.components.AuthScreen
 import com.example.ui.components.FamilySafeZonesView
 import com.example.ui.components.InteractiveMapView
 import com.example.ui.components.LiveVoiceConversationDialog
 import com.example.ui.components.TimelineView
+import com.example.ui.components.UserSessionDialog
 import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.BackgroundDark
 import com.example.ui.theme.MyApplicationTheme
@@ -78,7 +85,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                MainAppScreen(viewModel = viewModel)
+                val authState by viewModel.authState.collectAsState()
+                if (authState != AuthState.AUTHENTICATED) {
+                    AuthScreen(viewModel = viewModel)
+                } else {
+                    MainAppScreen(viewModel = viewModel)
+                }
             }
         }
     }
@@ -86,6 +98,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
+    val currentUserSession by viewModel.currentUserSession.collectAsState()
+    var isUserSessionDialogOpen by remember { mutableStateOf(false) }
+
     val selectedTab by viewModel.selectedTab.collectAsState()
     val selectedMemberId by viewModel.selectedMemberId.collectAsState()
     val members by viewModel.familyMembers.collectAsState()
@@ -109,6 +124,17 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     val isRecordingVoice by viewModel.isRecordingVoice.collectAsState()
     val isLiveVoiceActive by viewModel.isLiveVoiceActive.collectAsState()
     val liveVoiceLatestReply by viewModel.liveVoiceLatestReply.collectAsState()
+
+    if (isUserSessionDialogOpen && currentUserSession != null) {
+        UserSessionDialog(
+            session = currentUserSession!!,
+            onDismiss = { isUserSessionDialogOpen = false },
+            onSignOut = {
+                isUserSessionDialogOpen = false
+                viewModel.signOut()
+            }
+        )
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -142,7 +168,7 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
         topBar = {
             Surface(
                 color = SurfaceCardDark,
-                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorderDark),
+                border = BorderStroke(1.dp, SurfaceBorderDark),
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
@@ -181,21 +207,66 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                         }
                     }
 
-                    // Mode indicator badge
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0F172A),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B))
+                    // User Profile badge & Radar status
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = if (isOfflineMode) "Offline Cached" else "Live Radar",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = if (isOfflineMode) Color(0xFFEF4444) else Color(0xFF10B981),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            ),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                        )
+                        currentUserSession?.let { session ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF0F172A),
+                                border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                                modifier = Modifier.clickable { isUserSessionDialogOpen = true }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(session.avatarColorHex)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = session.displayName.take(1).uppercase(),
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = session.displayName.substringBefore(" ").take(8),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mode indicator badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0F172A),
+                            border = BorderStroke(1.dp, Color(0xFF1E293B))
+                        ) {
+                            Text(
+                                text = if (isOfflineMode) "Offline" else "Live Radar",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (isOfflineMode) Color(0xFFEF4444) else Color(0xFF10B981),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -332,6 +403,8 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                     isBackgroundTrackingActive = isBackgroundTrackingActive,
                     outgoingInvites = outgoingInvites,
                     incomingRequests = incomingRequests,
+                    currentUserSession = currentUserSession,
+                    onSignOut = { viewModel.signOut() },
                     onToggleOfflineMode = { viewModel.toggleOfflineMode() },
                     onSyncOfflineCache = { viewModel.syncOfflineLocations() },
                     onToggleBackgroundTracking = { viewModel.toggleBackgroundTracking() },
@@ -362,7 +435,7 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color(0xFF0F172A),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
+                        border = BorderStroke(1.dp, AccentCyan),
                         shadowElevation = 6.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {

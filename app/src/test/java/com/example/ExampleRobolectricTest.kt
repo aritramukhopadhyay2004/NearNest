@@ -3,6 +3,10 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.assistant.AiMovementAssistant
+import com.example.data.auth.AuthManager
+import com.example.data.auth.AuthMethod
+import com.example.data.auth.AuthState
+
 import com.example.data.local.AppDatabase
 import com.example.data.model.LocationRecord
 import com.example.data.repository.FamilyDataSeed
@@ -367,5 +371,93 @@ class ExampleRobolectricTest {
         assertTrue(stops.all { it.dwellDurationText.contains("Dwell", ignoreCase = true) })
         assertEquals(1, stops.first().stopIndex)
         assertEquals(johnVisits.size, stops.last().stopIndex)
+    }
+
+    @Test
+    fun testPhoneSmsOtpFlow() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+        authManager.signOut()
+
+        assertEquals(AuthState.UNAUTHENTICATED, authManager.authState.value)
+
+        val requested = authManager.requestPhoneOtp(rawPhone = "9876543210", countryCode = "+91", userName = "John Doe")
+        assertTrue(requested)
+        assertEquals(AuthState.ENTER_OTP, authManager.authState.value)
+
+        val challenge = authManager.activeChallenge.value
+        assertTrue(challenge != null)
+        assertEquals(AuthMethod.PHONE_SMS, challenge!!.method)
+        assertEquals(6, challenge.code.length)
+        assertTrue(challenge.target.contains("9876543210"))
+
+        // Verify with valid OTP
+        val verified = authManager.verifyOtp(challenge.code, "John Doe")
+        assertTrue(verified)
+        assertEquals(AuthState.AUTHENTICATED, authManager.authState.value)
+
+        val session = authManager.currentSession.value
+        assertTrue(session != null)
+        assertEquals("John Doe", session!!.displayName)
+        assertEquals(AuthMethod.PHONE_SMS, session.authMethod)
+        assertTrue(session.isVerified)
+    }
+
+    @Test
+    fun testGoogleGmailOtpFlow() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+        authManager.signOut()
+
+        val requested = authManager.requestGoogleOtp(rawEmail = "sarah.nearnest@gmail.com", userName = "Sarah Connor")
+        assertTrue(requested)
+        assertEquals(AuthState.ENTER_OTP, authManager.authState.value)
+
+        val challenge = authManager.activeChallenge.value
+        assertTrue(challenge != null)
+        assertEquals(AuthMethod.GOOGLE_GMAIL, challenge!!.method)
+        assertEquals(6, challenge.code.length)
+        assertEquals("sarah.nearnest@gmail.com", challenge.target)
+
+        // Verify with valid code
+        val verified = authManager.verifyOtp(challenge.code, "Sarah Connor")
+        assertTrue(verified)
+        assertEquals(AuthState.AUTHENTICATED, authManager.authState.value)
+
+        val session = authManager.currentSession.value
+        assertTrue(session != null)
+        assertEquals("Sarah Connor", session!!.displayName)
+        assertEquals(AuthMethod.GOOGLE_GMAIL, session.authMethod)
+    }
+
+    @Test
+    fun testInvalidOtpRejection() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+        authManager.signOut()
+
+        authManager.requestPhoneOtp(rawPhone = "9123456789", countryCode = "+91")
+        val challenge = authManager.activeChallenge.value!!
+
+        // Wrong code
+        val wrongCode = if (challenge.code == "123456") "654321" else "123456"
+        val verified = authManager.verifyOtp(wrongCode)
+        assertFalse(verified)
+        assertEquals(AuthState.ENTER_OTP, authManager.authState.value)
+        assertTrue(authManager.authError.value != null)
+    }
+
+    @Test
+    fun testSignOutClearsSession() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+
+        authManager.quickDemoLogin(AuthMethod.PHONE_SMS)
+        assertEquals(AuthState.AUTHENTICATED, authManager.authState.value)
+        assertTrue(authManager.currentSession.value != null)
+
+        authManager.signOut()
+        assertEquals(AuthState.UNAUTHENTICATED, authManager.authState.value)
+        assertEquals(null, authManager.currentSession.value)
     }
 }
