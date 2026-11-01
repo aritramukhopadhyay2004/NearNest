@@ -14,7 +14,7 @@ import kotlin.random.Random
 
 /**
  * Authentication Controller managing device onboarding, OTP generation,
- * SMS/Gmail delivery simulation, and session verification.
+ * SMS/Gmail delivery simulation, session verification, and Family Nest pairing.
  */
 class AuthManager(
     private val context: Context,
@@ -31,6 +31,9 @@ class AuthManager(
     private val _currentSession = MutableStateFlow<UserSession?>(prefsManager.getSession())
     val currentSession: StateFlow<UserSession?> = _currentSession.asStateFlow()
 
+    private val _currentNest = MutableStateFlow<FamilyNest>(prefsManager.getNest())
+    val currentNest: StateFlow<FamilyNest> = _currentNest.asStateFlow()
+
     private val _activeChallenge = MutableStateFlow<OtpChallenge?>(null)
     val activeChallenge: StateFlow<OtpChallenge?> = _activeChallenge.asStateFlow()
 
@@ -44,13 +47,34 @@ class AuthManager(
     val lastDeliveredOtpMessage: StateFlow<String?> = _lastDeliveredOtpMessage.asStateFlow()
 
     /**
+     * Unified Login: Dispatches OTP based on input format (Phone SMS or Google Gmail)
+     */
+    fun requestOtpForInput(
+        rawInput: String,
+        countryCode: String = "+91",
+        userName: String = ""
+    ): Boolean {
+        val trimmed = rawInput.trim()
+        if (trimmed.isEmpty()) {
+            _authError.value = "Please enter your email address or mobile phone number."
+            return false
+        }
+
+        return if (trimmed.contains("@")) {
+            requestGoogleOtp(rawEmail = trimmed, userName = userName)
+        } else {
+            requestPhoneOtp(rawPhone = trimmed, countryCode = countryCode, userName = userName)
+        }
+    }
+
+    /**
      * Request OTP via SMS for Mobile Phone login
      */
     fun requestPhoneOtp(
         rawPhone: String,
         countryCode: String = "+91",
         userName: String = "",
-        nestCode: String = "NEST-4821"
+        nestCode: String = "NEST-7492"
     ): Boolean {
         _authError.value = null
         val cleanDigits = rawPhone.filter { it.isDigit() }
@@ -84,7 +108,7 @@ class AuthManager(
     fun requestGoogleOtp(
         rawEmail: String,
         userName: String = "",
-        nestCode: String = "NEST-4821"
+        nestCode: String = "NEST-7492"
     ): Boolean {
         _authError.value = null
         val email = rawEmail.trim()
@@ -135,7 +159,7 @@ class AuthManager(
     }
 
     /**
-     * Verify the entered OTP code and complete login
+     * Verify the entered OTP code and complete initial authentication
      */
     fun verifyOtp(enteredCode: String, customDisplayName: String = ""): Boolean {
         _authError.value = null
@@ -164,13 +188,16 @@ class AuthManager(
         }
 
         val now12h = timeFormat12h.format(Date())
+        val nest = _currentNest.value
         val session = UserSession(
             userId = "user_" + UUID.randomUUID().toString().take(8),
             displayName = resolvedName,
             authMethod = challenge.method,
             contact = challenge.target,
             avatarColorHex = if (challenge.method == AuthMethod.PHONE_SMS) 0xFF0284C7 else 0xFF10B981,
-            familyNestCode = "NEST-4821",
+            nestNo = nest.nestNo,
+            nestPass = nest.nestPass,
+            nestName = nest.nestName,
             token = UUID.randomUUID().toString(),
             loginTimestamp12h = now12h,
             isVerified = true
@@ -192,10 +219,119 @@ class AuthManager(
     }
 
     /**
+     * Create a brand new Family Nest with unique Nest No and secret Nest Pass
+     */
+    fun createNewNest(
+        nestName: String = "The Family Nest",
+        creatorName: String = ""
+    ): FamilyNest {
+        val uniqueNo = "NEST-${Random.nextInt(1000, 9999)}"
+        val uniquePass = "PASS-${Random.nextInt(1000, 9999)}"
+        val resolvedCreator = creatorName.ifBlank { _currentSession.value?.displayName ?: "Family Admin" }
+        val now12h = timeFormat12h.format(Date())
+
+        val newNest = FamilyNest(
+            nestNo = uniqueNo,
+            nestPass = uniquePass,
+            nestName = nestName.trim().ifBlank { "The Family Nest" },
+            creatorName = resolvedCreator,
+            createdAt12h = now12h,
+            membersCount = 1
+        )
+
+        prefsManager.saveNest(newNest)
+        _currentNest.value = newNest
+
+        // Update active session with new Nest details if authenticated
+        _currentSession.value?.let { session ->
+            val updatedSession = session.copy(
+                nestNo = uniqueNo,
+                nestPass = uniquePass,
+                nestName = newNest.nestName
+            )
+            prefsManager.saveSession(updatedSession)
+            _currentSession.value = updatedSession
+        }
+
+        _authError.value = null
+        return newNest
+    }
+
+    /**
+     * Join an existing Family Nest using Nest No and Nest Pass
+     */
+    fun joinNest(
+        rawNestNo: String,
+        rawNestPass: String,
+        customNestName: String? = null
+    ): Result<FamilyNest> {
+        _authError.value = null
+        val cleanNo = rawNestNo.trim().uppercase()
+        val cleanPass = rawNestPass.trim().uppercase()
+
+        if (cleanNo.isBlank() || cleanPass.isBlank()) {
+            val err = "Both Nest No and Nest Pass are required to connect."
+            _authError.value = err
+            return Result.failure(IllegalArgumentException(err))
+        }
+
+        // Format validation: accept "NEST-XXXX" or just "XXXX"
+        val formattedNestNo = if (cleanNo.startsWith("NEST-")) cleanNo else "NEST-$cleanNo"
+        val formattedNestPass = if (cleanPass.startsWith("PASS-")) cleanPass else "PASS-$cleanPass"
+
+        if (formattedNestNo.length < 7 || formattedNestPass.length < 7) {
+            val err = "Invalid Nest credentials. Please enter a valid 4-digit Nest No & Pass."
+            _authError.value = err
+            return Result.failure(IllegalArgumentException(err))
+        }
+
+        val resolvedNestName = customNestName?.trim()?.ifBlank { null }
+            ?: if (formattedNestNo == _currentNest.value.nestNo) _currentNest.value.nestName else "Connected Family Nest"
+
+        val joinedNest = FamilyNest(
+            nestNo = formattedNestNo,
+            nestPass = formattedNestPass,
+            nestName = resolvedNestName,
+            creatorName = "Family Admin",
+            createdAt12h = timeFormat12h.format(Date()),
+            membersCount = 4
+        )
+
+        prefsManager.saveNest(joinedNest)
+        _currentNest.value = joinedNest
+
+        // Update active session
+        _currentSession.value?.let { session ->
+            val updatedSession = session.copy(
+                nestNo = formattedNestNo,
+                nestPass = formattedNestPass,
+                nestName = joinedNest.nestName
+            )
+            prefsManager.saveSession(updatedSession)
+            _currentSession.value = updatedSession
+
+            // Register user in repository
+            repository?.let { repo ->
+                syncUserWithFamily(updatedSession, repo)
+            }
+        }
+
+        return Result.success(joinedNest)
+    }
+
+    /**
+     * Complete Nest Setup and proceed into dashboard
+     */
+    fun completeNestSetup() {
+        _authState.value = AuthState.AUTHENTICATED
+    }
+
+    /**
      * Fast 1-tap demo login for rapid testing on real devices
      */
     fun quickDemoLogin(method: AuthMethod) {
         val now12h = timeFormat12h.format(Date())
+        val defaultNest = _currentNest.value
         val session = if (method == AuthMethod.PHONE_SMS) {
             UserSession(
                 userId = "user_john",
@@ -203,7 +339,9 @@ class AuthManager(
                 authMethod = AuthMethod.PHONE_SMS,
                 contact = "+91 98765 43210",
                 avatarColorHex = 0xFF0284C7,
-                familyNestCode = "NEST-4821",
+                nestNo = defaultNest.nestNo,
+                nestPass = defaultNest.nestPass,
+                nestName = defaultNest.nestName,
                 token = UUID.randomUUID().toString(),
                 loginTimestamp12h = now12h,
                 isVerified = true
@@ -215,7 +353,9 @@ class AuthManager(
                 authMethod = AuthMethod.GOOGLE_GMAIL,
                 contact = "sarah.nearnest@gmail.com",
                 avatarColorHex = 0xFFD946EF,
-                familyNestCode = "NEST-4821",
+                nestNo = defaultNest.nestNo,
+                nestPass = defaultNest.nestPass,
+                nestName = defaultNest.nestName,
                 token = UUID.randomUUID().toString(),
                 loginTimestamp12h = now12h,
                 isVerified = true

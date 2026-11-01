@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-11-01T21:56:51.1203792+05:30",
-    "fileSizeBytes":  23391735,
+    "buildDate":  "2026-11-01T23:00:52.9544487+05:30",
+    "fileSizeBytes":  23391916,
     "fileSizeMb":  22.31,
-    "buildDurationSecs":  40,
+    "buildDurationSecs":  18.1,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "6c23eb9",
+    "gitCommit":  "894c0ea",
     "gitMessage":  [
-                       "feat: add 5-min breadcrumb traversal map with auto-detected stops to Timeline tab",
+                       "feat: add user authentication with Phone SMS and Google Gmail OTP verification",
                        ""
                    ],
     "checkWindowDays":  20

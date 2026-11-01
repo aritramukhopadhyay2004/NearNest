@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     val currentUserSession by viewModel.currentUserSession.collectAsState()
+    val currentNest by viewModel.currentNest.collectAsState()
     var isUserSessionDialogOpen by remember { mutableStateOf(false) }
 
     val selectedTab by viewModel.selectedTab.collectAsState()
@@ -404,6 +405,9 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
                     outgoingInvites = outgoingInvites,
                     incomingRequests = incomingRequests,
                     currentUserSession = currentUserSession,
+                    currentNest = currentNest,
+                    onCreateNest = { viewModel.createNewNest(it) },
+                    onJoinNest = { no, pass -> viewModel.joinNest(no, pass) },
                     onSignOut = { viewModel.signOut() },
                     onToggleOfflineMode = { viewModel.toggleOfflineMode() },
                     onSyncOfflineCache = { viewModel.syncOfflineLocations() },

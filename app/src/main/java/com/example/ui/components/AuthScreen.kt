@@ -1,9 +1,15 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,26 +33,37 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MarkEmailRead
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,18 +81,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.R
 import com.example.data.auth.AuthMethod
 import com.example.data.auth.AuthState
+import com.example.data.auth.FamilyNest
 import com.example.data.auth.OtpChallenge
 import com.example.data.auth.UserSession
 import com.example.ui.FamilyTrackerViewModel
@@ -84,26 +110,35 @@ import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
 import com.example.ui.theme.SurfaceBorderDark
 import com.example.ui.theme.SurfaceCardDark
+import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
 import kotlinx.coroutines.delay
 
+/**
+ * Pinterest-Style NearNest Authentication & Onboarding Screen
+ * Features:
+ * - Top mosaic preview collage of NearNest capabilities (Radar, Traversal, AI Safety, Telemetry)
+ * - Centered circular NearNest emblem
+ * - Bold headline ("Keep your loved ones safe & close")
+ * - Single unified input field for Email or Mobile Phone
+ * - "Continue" primary CTA
+ * - "Or" divider
+ * - "Continue with Google" button with Google logo
+ * - Nest Creation & Join System with Unique Nest No & Nest Pass
+ */
 @Composable
 fun AuthScreen(viewModel: FamilyTrackerViewModel) {
     val authState by viewModel.authState.collectAsState()
     val activeChallenge by viewModel.activeOtpChallenge.collectAsState()
     val authError by viewModel.authError.collectAsState()
     val lastDeliveredOtpMessage by viewModel.lastDeliveredOtpMessage.collectAsState()
+    val currentNest by viewModel.currentNest.collectAsState()
+    val context = LocalContext.current
 
-    var selectedMethod by remember { mutableStateOf(AuthMethod.PHONE_SMS) }
-    var phoneInput by remember { mutableStateOf("") }
-    var selectedCountryCode by remember { mutableStateOf("+91") }
-    var isCountryDropdownExpanded by remember { mutableStateOf(false) }
-    var emailInput by remember { mutableStateOf("") }
+    var unifiedInput by remember { mutableStateOf("") }
     var nameInput by remember { mutableStateOf("") }
-    var nestCodeInput by remember { mutableStateOf("NEST-4821") }
-
-    val countryCodes = listOf("+91 (India)", "+1 (USA)", "+44 (UK)", "+61 (Australia)", "+971 (UAE)", "+81 (Japan)")
+    var showNestJoinDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -111,9 +146,9 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF090D16),
-                        Color(0xFF0F172A),
-                        Color(0xFF0B132B)
+                        Color(0xFF04070D),
+                        Color(0xFF0B132B),
+                        Color(0xFF070B14)
                     )
                 )
             )
@@ -124,60 +159,27 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Brand Logo & Header
-            Image(
-                painter = painterResource(id = R.drawable.app_logo),
-                contentDescription = "NearNest Logo",
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .border(2.dp, AccentCyan.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = "NearNest",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 1.sp
-                )
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AccentCyan.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.4f))
-                ) {
-                    Text(
-                        text = "FAMILY SAFETY & MOVEMENT TRACKING",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = AccentCyan,
-                            fontSize = 10.sp,
-                            letterSpacing = 0.8.sp
-                        ),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
             if (authState == AuthState.ENTER_OTP && activeChallenge != null) {
                 // ==========================================
                 // OTP Verification View
                 // ==========================================
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Brand Emblem
+                Image(
+                    painter = painterResource(id = R.drawable.app_logo),
+                    contentDescription = "NearNest Logo",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, AccentCyan, CircleShape)
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
                 OtpVerificationCard(
                     challenge = activeChallenge!!,
                     error = authError,
@@ -192,379 +194,884 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
                         viewModel.cancelOtpVerification()
                     }
                 )
+            } else if (authState == AuthState.NEST_SETUP) {
+                // ==========================================
+                // Nest Setup View (Create or Join with Nest Pass)
+                // ==========================================
+                Spacer(modifier = Modifier.height(28.dp))
+
+                NestSetupCard(
+                    currentNest = currentNest,
+                    onCreateNest = { nestName ->
+                        viewModel.createNewNest(nestName)
+                        viewModel.completeNestSetup()
+                    },
+                    onJoinNest = { nestNo, nestPass ->
+                        val success = viewModel.joinNest(nestNo, nestPass)
+                        if (success) {
+                            viewModel.completeNestSetup()
+                        }
+                    },
+                    onSkip = {
+                        viewModel.completeNestSetup()
+                    }
+                )
             } else {
                 // ==========================================
-                // Login Method Selection & Credentials Input
+                // Pinterest-Style Login / Register View
                 // ==========================================
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
-                    border = BorderStroke(1.dp, SurfaceBorderDark)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Sign In / Register Device",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        )
-                        Text(
-                            text = "New or existing devices can authenticate instantly with Phone SMS or Google Account Gmail OTP.",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            ),
-                            modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
-                        )
 
-                        // Method Tabs
-                        Row(
+                // 1. Top Mosaic Preview Collage
+                PinterestMosaicHeroCollage()
+
+                // 2. Centered Circular App Emblem (overlapping collage bottom)
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF00ADB5))
+                        .border(3.dp, Color(0xFF38E8F5), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.app_logo),
+                        contentDescription = "NearNest Logo",
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. Bold Inspiring Headline
+                Text(
+                    text = "Keep your loved ones\nsafe & close",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        fontSize = 26.sp,
+                        lineHeight = 32.sp,
+                        letterSpacing = (-0.5).sp,
+                        textAlign = TextAlign.Center
+                    )
+                )
+
+                Text(
+                    text = "AI-Powered Family Safety & Movement Tracking",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 4. Pinterest-Style Input & Auth Form
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Unified Single Input Field (Email or Mobile Phone)
+                    val isEmail = unifiedInput.contains("@")
+                    val isPhone = unifiedInput.any { it.isDigit() } && !isEmail
+
+                    OutlinedTextField(
+                        value = unifiedInput,
+                        onValueChange = { unifiedInput = it },
+                        label = { Text("Email or Mobile Phone", color = TextTertiary, fontSize = 13.sp) },
+                        placeholder = { Text("e.g. name@gmail.com or 98765 43210", color = TextTertiary.copy(alpha = 0.5f), fontSize = 13.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = when {
+                                    isEmail -> Icons.Default.Email
+                                    isPhone -> Icons.Default.Phone
+                                    else -> Icons.Default.AccountCircle
+                                },
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (isEmail || isPhone) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = AccentCyan.copy(alpha = 0.15f),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Text(
+                                        text = if (isEmail) "GMAIL OTP" else "SMS OTP",
+                                        color = AccentCyan,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (unifiedInput.any { it.isDigit() } && !isEmail) KeyboardType.Phone else KeyboardType.Email
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentCyan,
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    // Error Banner
+                    AnimatedVisibility(visible = authError != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = AccentRose.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.4f)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF0F172A))
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                .padding(top = 10.dp)
                         ) {
-                            // Phone SMS tab
-                            val isPhoneSelected = selectedMethod == AuthMethod.PHONE_SMS
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isPhoneSelected) AccentCyan.copy(alpha = 0.2f) else Color.Transparent)
-                                    .border(
-                                        width = if (isPhoneSelected) 1.dp else 0.dp,
-                                        color = if (isPhoneSelected) AccentCyan else Color.Transparent,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .clickable { selectedMethod = AuthMethod.PHONE_SMS }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Phone,
-                                        contentDescription = "Phone",
-                                        tint = if (isPhoneSelected) AccentCyan else TextTertiary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Phone (SMS)",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = if (isPhoneSelected) Color.White else TextTertiary,
-                                            fontWeight = if (isPhoneSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 12.sp
-                                        )
-                                    )
-                                }
-                            }
-
-                            // Google Gmail tab
-                            val isGoogleSelected = selectedMethod == AuthMethod.GOOGLE_GMAIL
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isGoogleSelected) AccentCyan.copy(alpha = 0.2f) else Color.Transparent)
-                                    .border(
-                                        width = if (isGoogleSelected) 1.dp else 0.dp,
-                                        color = if (isGoogleSelected) AccentCyan else Color.Transparent,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .clickable { selectedMethod = AuthMethod.GOOGLE_GMAIL }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Email,
-                                        contentDescription = "Google",
-                                        tint = if (isGoogleSelected) AccentCyan else TextTertiary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Google (Gmail)",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = if (isGoogleSelected) Color.White else TextTertiary,
-                                            fontWeight = if (isGoogleSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 12.sp
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Full Name Input
-                        OutlinedTextField(
-                            value = nameInput,
-                            onValueChange = { nameInput = it },
-                            label = { Text("Your Name (Optional)", color = TextTertiary) },
-                            placeholder = { Text(if (selectedMethod == AuthMethod.PHONE_SMS) "e.g. John" else "e.g. Sarah", color = TextTertiary.copy(alpha = 0.6f)) },
-                            leadingIcon = {
-                                Icon(Icons.Default.AccountCircle, contentDescription = null, tint = AccentCyan)
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = SurfaceBorderDark,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedContainerColor = Color(0xFF0F172A),
-                                unfocusedContainerColor = Color(0xFF0F172A)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        if (selectedMethod == AuthMethod.PHONE_SMS) {
-                            // Phone Number Field with Country Code Picker
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = Color(0xFF0F172A),
-                                        border = BorderStroke(1.dp, SurfaceBorderDark),
-                                        modifier = Modifier
-                                            .height(56.dp)
-                                            .clickable { isCountryDropdownExpanded = true }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = selectedCountryCode,
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                    }
-
-                                    DropdownMenu(
-                                        expanded = isCountryDropdownExpanded,
-                                        onDismissRequest = { isCountryDropdownExpanded = false },
-                                        modifier = Modifier.background(SurfaceCardDark)
-                                    ) {
-                                        countryCodes.forEach { entry ->
-                                            val code = entry.substringBefore(" ")
-                                            DropdownMenuItem(
-                                                text = { Text(entry, color = Color.White) },
-                                                onClick = {
-                                                    selectedCountryCode = code
-                                                    isCountryDropdownExpanded = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = phoneInput,
-                                    onValueChange = { phoneInput = it },
-                                    label = { Text("Mobile Phone Number", color = TextTertiary) },
-                                    placeholder = { Text("98765 43210", color = TextTertiary.copy(alpha = 0.6f)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Phone, contentDescription = null, tint = AccentCyan)
-                                    },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AccentCyan,
-                                        unfocusedBorderColor = SurfaceBorderDark,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A)
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-                        } else {
-                            // Google Account Gmail Input
-                            OutlinedTextField(
-                                value = emailInput,
-                                onValueChange = { emailInput = it },
-                                label = { Text("Google Account / Gmail Address", color = TextTertiary) },
-                                placeholder = { Text("your.name@gmail.com", color = TextTertiary.copy(alpha = 0.6f)) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Email, contentDescription = null, tint = AccentCyan)
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AccentCyan,
-                                    unfocusedBorderColor = SurfaceBorderDark,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedContainerColor = Color(0xFF0F172A),
-                                    unfocusedContainerColor = Color(0xFF0F172A)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Family Nest Code Input
-                        OutlinedTextField(
-                            value = nestCodeInput,
-                            onValueChange = { nestCodeInput = it },
-                            label = { Text("Family Nest Code", color = TextTertiary) },
-                            placeholder = { Text("NEST-4821", color = TextTertiary.copy(alpha = 0.6f)) },
-                            leadingIcon = {
-                                Icon(Icons.Default.FamilyRestroom, contentDescription = null, tint = AccentCyan)
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = SurfaceBorderDark,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedContainerColor = Color(0xFF0F172A),
-                                unfocusedContainerColor = Color(0xFF0F172A)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        // Error Banner
-                        AnimatedVisibility(visible = authError != null) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = AccentRose.copy(alpha = 0.15f),
-                                border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.4f)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 14.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AccentRose, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = authError ?: "",
-                                        color = AccentRose,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Send OTP Action Button
-                        Button(
-                            onClick = {
-                                if (selectedMethod == AuthMethod.PHONE_SMS) {
-                                    viewModel.requestPhoneOtp(
-                                        rawPhone = phoneInput,
-                                        countryCode = selectedCountryCode,
-                                        userName = nameInput,
-                                        nestCode = nestCodeInput
-                                    )
-                                } else {
-                                    viewModel.requestGoogleOtp(
-                                        rawEmail = emailInput,
-                                        userName = nameInput,
-                                        nestCode = nestCodeInput
-                                    )
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentCyan,
-                                contentColor = Color(0xFF00363A)
-                            )
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = if (selectedMethod == AuthMethod.PHONE_SMS) "Send SMS Verification Code" else "Send Gmail Verification Code",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AccentRose, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(
+                                    text = authError ?: "",
+                                    color = AccentRose,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 5. "Continue" Primary Action Button
+                    Button(
+                        onClick = {
+                            if (unifiedInput.isBlank()) {
+                                Toast.makeText(context, "Please enter your email or phone number.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.requestOtpForInput(unifiedInput, userName = nameInput)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentCyan,
+                            contentColor = Color(0xFF00363A)
+                        )
+                    ) {
+                        Text(
+                            text = "Continue",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 6. "Or" Divider
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFF334155),
+                            thickness = 1.dp
+                        )
+                        Text(
+                            text = "Or",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFF334155),
+                            thickness = 1.dp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 7. "Continue with Google" Button
+                    Button(
+                        onClick = {
+                            val googleTarget = if (unifiedInput.contains("@")) unifiedInput else "sarah.nearnest@gmail.com"
+                            viewModel.requestGoogleOtp(googleTarget, userName = nameInput)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0F172A),
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = "Google Logo",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Continue with Google",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 8. Nest Pass Quick Join Shortcut
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF0F172A).copy(alpha = 0.6f),
+                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showNestJoinDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Have a Family Nest Pass? Connect directly",
+                                color = AccentCyan,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // 9. Fast 1-Tap Demo Testing Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.quickDemoLogin(AuthMethod.PHONE_SMS) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                        ) {
+                            Text("⚡ John (Phone)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.quickDemoLogin(AuthMethod.GOOGLE_GMAIL) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, Color(0xFFD946EF).copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD946EF))
+                        ) {
+                            Text("⚡ Sarah (Google)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // 10. Legal Terms of Service Disclaimer
+                    Text(
+                        text = "By continuing, you agree to NearNest's Terms of Service and acknowledge that you've read our Privacy Policy. Notice at collection.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextTertiary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                            textAlign = TextAlign.Center
+                        ),
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    // Modal Dialog to Join Nest with Nest No & Nest Pass directly
+    if (showNestJoinDialog) {
+        JoinNestDialog(
+            currentNest = currentNest,
+            onDismiss = { showNestJoinDialog = false },
+            onConnect = { nestNo, nestPass ->
+                val success = viewModel.joinNest(nestNo, nestPass)
+                if (success) {
+                    showNestJoinDialog = false
+                    Toast.makeText(context, "Connected to Family Nest $nestNo!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Pinterest-Style Mosaic Hero Collage
+ * Beautiful preview tiles showcasing NearNest features:
+ * - Live GPS Radar with pulse beacon
+ * - Today's Traversal polyline route preview
+ * - AI Safety Assistant query card
+ * - Family battery & telemetry status
+ */
+@Composable
+fun PinterestMosaicHeroCollage() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Left Column: Live Radar Card + SOS Badge
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Live Radar Card
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF0D182E),
+                    border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1.3f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(AccentCyan)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("LIVE RADAR", color = AccentCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Column {
+                            Text("Home Zone", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("In Radius • 200m", color = AccentEmerald, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+
+                // AI Safety Status Card
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF141A29),
+                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = AccentEmerald, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text("Emma at School", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("Arrived 8:15 AM", color = TextSecondary, fontSize = 9.sp)
+                        }
+                    }
+                }
+            }
+
+            // Center Column: Today's Traversal Route Card (Prominent Pin)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF0F1E36),
+                border = BorderStroke(1.5.dp, AccentCyan.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .weight(1.2f)
+                    .fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("TODAY'S ROUTE", color = AccentCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Navigation, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(13.dp))
+                    }
+
+                    // Mini Polyline Preview Canvas
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF081224))
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val path = Path().apply {
+                                moveTo(size.width * 0.15f, size.height * 0.75f)
+                                lineTo(size.width * 0.45f, size.height * 0.35f)
+                                lineTo(size.width * 0.65f, size.height * 0.6f)
+                                lineTo(size.width * 0.85f, size.height * 0.2f)
+                            }
+                            drawPath(
+                                path = path,
+                                color = AccentCyan,
+                                style = Stroke(width = 3.dp.toPx())
+                            )
+                            // Draw stops
+                            drawCircle(color = AccentCyan, radius = 4.dp.toPx(), center = Offset(size.width * 0.15f, size.height * 0.75f))
+                            drawCircle(color = AccentEmerald, radius = 4.dp.toPx(), center = Offset(size.width * 0.45f, size.height * 0.35f))
+                            drawCircle(color = AccentCyan, radius = 4.dp.toPx(), center = Offset(size.width * 0.65f, size.height * 0.6f))
+                            drawCircle(color = Color(0xFFD946EF), radius = 5.dp.toPx(), center = Offset(size.width * 0.85f, size.height * 0.2f))
+                        }
+                    }
+
+                    Column {
+                        Text("4 Stops • 1 Commute", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text("12-Hour AM/PM Logged", color = TextSecondary, fontSize = 9.sp)
+                    }
+                }
+            }
+
+            // Right Column: Family Telemetry & Battery Card
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Family Telemetry
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF131A2D),
+                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1.2f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Group, contentDescription = null, tint = Color(0xFFD946EF), modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("TELEMETRY", color = Color(0xFFD946EF), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("John", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text("78%", color = AccentCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Sarah", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text("88%", color = AccentEmerald, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Fast 1-Tap Testing Section
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    border = BorderStroke(1.dp, SurfaceBorderDark)
+                // Family Nest Pass Card
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF0F1E2A),
+                    border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.3f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "⚡ Instant Testing Shortcuts for New Devices",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.quickDemoLogin(AuthMethod.PHONE_SMS) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
-                            ) {
-                                Text("John (Phone)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.quickDemoLogin(AuthMethod.GOOGLE_GMAIL) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, Color(0xFFD946EF).copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD946EF))
-                            ) {
-                                Text("Sarah (Google)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
+                        Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text("Nest Pass Protected", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text("Unique Nest No", color = AccentCyan, fontSize = 8.sp)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Nest Setup Card: Create a new Nest or Join with Nest Pass
+ */
+@Composable
+fun NestSetupCard(
+    currentNest: FamilyNest,
+    onCreateNest: (String) -> Unit,
+    onJoinNest: (String, String) -> Unit,
+    onSkip: () -> Unit
+) {
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Create, 1 = Join
+    var nestNameInput by remember { mutableStateOf("The Family Nest") }
+    var nestNoInput by remember { mutableStateOf("") }
+    var nestPassInput by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
+        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f))
+    ) {
+        Column(
+            modifier = Modifier.padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(AccentCyan.copy(alpha = 0.15f))
+                    .border(1.5.dp, AccentCyan, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.FamilyRestroom, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(28.dp))
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Connect Your Family Nest",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    fontSize = 20.sp
+                )
+            )
+
+            Text(
+                text = "Create a new family group with a unique Nest No & Pass, or enter your family's Nest Pass to link instantly.",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                ),
+                modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
+            )
+
+            // Switch Tabs
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF0F172A))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selectedTab == 0) AccentCyan.copy(alpha = 0.2f) else Color.Transparent)
+                        .border(if (selectedTab == 0) 1.dp else 0.dp, if (selectedTab == 0) AccentCyan else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { selectedTab = 0 }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Create New Nest",
+                        color = if (selectedTab == 0) Color.White else TextTertiary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selectedTab == 1) AccentCyan.copy(alpha = 0.2f) else Color.Transparent)
+                        .border(if (selectedTab == 1) 1.dp else 0.dp, if (selectedTab == 1) AccentCyan else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { selectedTab = 1 }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Join with Nest Pass",
+                        color = if (selectedTab == 1) Color.White else TextTertiary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            if (selectedTab == 0) {
+                // Tab 0: Create New Nest
+                OutlinedTextField(
+                    value = nestNameInput,
+                    onValueChange = { nestNameInput = it },
+                    label = { Text("Family Nest Name", color = TextTertiary) },
+                    placeholder = { Text("e.g. The Mukherjee Family", color = TextTertiary.copy(alpha = 0.6f)) },
+                    leadingIcon = { Icon(Icons.Default.FamilyRestroom, contentDescription = null, tint = AccentCyan) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorderDark,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { onCreateNest(nestNameInput) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                ) {
+                    Text("Generate Nest No & Pass", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            } else {
+                // Tab 1: Join Existing Nest
+                OutlinedTextField(
+                    value = nestNoInput,
+                    onValueChange = { nestNoInput = it },
+                    label = { Text("Family Nest No", color = TextTertiary) },
+                    placeholder = { Text("e.g. NEST-7492", color = TextTertiary.copy(alpha = 0.6f)) },
+                    leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorderDark,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = nestPassInput,
+                    onValueChange = { nestPassInput = it },
+                    label = { Text("Secret Nest Pass", color = TextTertiary) },
+                    placeholder = { Text("e.g. PASS-4821", color = TextTertiary.copy(alpha = 0.6f)) },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = AccentCyan) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorderDark,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { onJoinNest(nestNoInput, nestPassInput) },
+                    enabled = nestNoInput.isNotBlank() && nestPassInput.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                ) {
+                    Text("Connect to Family Nest", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Skip / Default
+            OutlinedButton(
+                onClick = onSkip,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, SurfaceBorderDark),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+            ) {
+                Text("Continue to Default Nest (${currentNest.nestNo})", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+/**
+ * Modal Dialog to Join Nest with Nest No & Nest Pass directly from anywhere in the app
+ */
+@Composable
+fun JoinNestDialog(
+    currentNest: FamilyNest,
+    onDismiss: () -> Unit,
+    onConnect: (String, String) -> Unit
+) {
+    var nestNo by remember { mutableStateOf("") }
+    var nestPass by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
+            border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(36.dp))
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Connect to Family Nest",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 18.sp
+                    )
+                )
+
+                Text(
+                    text = "Enter your family's unique Nest No and Nest Pass to sync live movement and safe zones.",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                )
+
+                OutlinedTextField(
+                    value = nestNo,
+                    onValueChange = { nestNo = it },
+                    label = { Text("Nest No", color = TextTertiary) },
+                    placeholder = { Text("e.g. NEST-7492", color = TextTertiary.copy(alpha = 0.5f)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorderDark,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = nestPass,
+                    onValueChange = { nestPass = it },
+                    label = { Text("Nest Pass", color = TextTertiary) },
+                    placeholder = { Text("e.g. PASS-4821", color = TextTertiary.copy(alpha = 0.5f)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = SurfaceBorderDark,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Button(
+                    onClick = { onConnect(nestNo, nestPass) },
+                    enabled = nestNo.isNotBlank() && nestPass.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                ) {
+                    Text("Connect Device", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, SurfaceBorderDark),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                ) {
+                    Text("Cancel", fontSize = 12.sp)
                 }
             }
         }
@@ -586,7 +1093,6 @@ fun OtpVerificationCard(
     var otpCode by remember { mutableStateOf("") }
     var secondsRemaining by remember { mutableIntStateOf(challenge.remainingSeconds()) }
 
-    // Countdown Timer Effect
     LaunchedEffect(challenge.timestampEpoch) {
         secondsRemaining = challenge.remainingSeconds()
         while (secondsRemaining > 0) {
@@ -596,7 +1102,9 @@ fun OtpVerificationCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
         border = BorderStroke(1.dp, SurfaceBorderDark)
@@ -827,7 +1335,7 @@ fun OtpVerificationCard(
                     modifier = Modifier.clickable { onChangeContact() },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Change Target",
@@ -865,7 +1373,8 @@ fun OtpVerificationCard(
 }
 
 /**
- * Dialog displaying active user session details with option to switch account or sign out
+ * Dialog displaying active user session details and Family Nest credentials
+ * Allows copying Nest No & Nest Pass, toggling visibility, or signing out.
  */
 @Composable
 fun UserSessionDialog(
@@ -873,7 +1382,10 @@ fun UserSessionDialog(
     onDismiss: () -> Unit,
     onSignOut: () -> Unit
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    val context = LocalContext.current
+    var isPassVisible by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
@@ -881,13 +1393,13 @@ fun UserSessionDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Header Avatar
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
+                        .size(64.dp)
                         .clip(CircleShape)
                         .background(Color(session.avatarColorHex))
                         .border(2.dp, AccentCyan, CircleShape),
@@ -902,7 +1414,7 @@ fun UserSessionDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = session.displayName,
@@ -952,7 +1464,7 @@ fun UserSessionDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Verification Status", color = TextTertiary, fontSize = 12.sp)
+                            Text(text = "Status", color = TextTertiary, fontSize = 12.sp)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = AccentEmerald, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -960,40 +1472,125 @@ fun UserSessionDialog(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = Color(0xFF1E293B), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(10.dp))
 
+                        // Family Nest Details
+                        Text(
+                            text = "FAMILY NEST CREDENTIALS",
+                            color = AccentCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Nest No
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Family Nest ID", color = TextTertiary, fontSize = 12.sp)
-                            Text(
-                                text = session.familyNestCode,
-                                color = AccentCyan,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                            Text(text = "Nest No", color = TextTertiary, fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = session.nestNo,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy Nest No",
+                                    tint = AccentCyan,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(ClipData.newPlainText("Nest No", session.nestNo))
+                                            Toast.makeText(context, "Copied Nest No: ${session.nestNo}", Toast.LENGTH_SHORT).show()
+                                        }
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        // Nest Pass
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Session Active Since", color = TextTertiary, fontSize = 12.sp)
-                            Text(
-                                text = session.loginTimestamp12h,
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
+                            Text(text = "Nest Pass", color = TextTertiary, fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (isPassVisible) session.nestPass else "••••••••",
+                                    color = AccentCyan,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = if (isPassVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle Pass",
+                                    tint = TextSecondary,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { isPassVisible = !isPassVisible }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy Nest Pass",
+                                    tint = AccentCyan,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(ClipData.newPlainText("Nest Pass", session.nestPass))
+                                            Toast.makeText(context, "Copied Nest Pass to clipboard", Toast.LENGTH_SHORT).show()
+                                        }
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Share Nest Pass Button
+                Button(
+                    onClick = {
+                        val shareText = "Join our family on NearNest!\nNest No: ${session.nestNo}\nNest Pass: ${session.nestPass}\nOpen NearNest and enter our Nest Pass to connect instantly."
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                            type = "text/plain"
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, "Share NearNest Pass")
+                        shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(shareIntent)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Share Nest Pass with Family", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Actions: Switch Account / Sign Out
                 Button(
@@ -1003,7 +1600,7 @@ fun UserSessionDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(44.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AccentRose.copy(alpha = 0.2f),
@@ -1011,16 +1608,16 @@ fun UserSessionDialog(
                     ),
                     border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.6f))
                 ) {
-                    Text(text = "Switch Account / Sign Out", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(text = "Switch Account / Sign Out", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .height(40.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                     border = BorderStroke(1.dp, SurfaceBorderDark)

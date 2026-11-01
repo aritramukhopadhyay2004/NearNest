@@ -11,6 +11,7 @@ import com.example.data.location.LocationServiceManager
 import com.example.data.auth.AuthManager
 import com.example.data.auth.AuthMethod
 import com.example.data.auth.AuthState
+import com.example.data.auth.FamilyNest
 import com.example.data.auth.OtpChallenge
 import com.example.data.auth.UserSession
 import com.example.data.model.ChatMessage
@@ -45,6 +46,7 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     // User Authentication State
     val authState: StateFlow<AuthState> = authManager.authState
     val currentUserSession: StateFlow<UserSession?> = authManager.currentSession
+    val currentNest: StateFlow<FamilyNest> = authManager.currentNest
     val activeOtpChallenge: StateFlow<OtpChallenge?> = authManager.activeChallenge
     val authError: StateFlow<String?> = authManager.authError
     val lastDeliveredOtpMessage: StateFlow<String?> = authManager.lastDeliveredOtpMessage
@@ -526,11 +528,24 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     // Authentication & Onboarding Actions
     // ==========================================
 
+    fun requestOtpForInput(
+        rawInput: String,
+        countryCode: String = "+91",
+        userName: String = ""
+    ): Boolean {
+        val success = authManager.requestOtpForInput(rawInput, countryCode, userName)
+        if (success) {
+            val isEmail = rawInput.contains("@")
+            _statusBanner.value = if (isEmail) "Verification code dispatched via Gmail." else "Verification code dispatched via SMS."
+        }
+        return success
+    }
+
     fun requestPhoneOtp(
         rawPhone: String,
         countryCode: String = "+91",
         userName: String = "",
-        nestCode: String = "NEST-4821"
+        nestCode: String = "NEST-7492"
     ): Boolean {
         val success = authManager.requestPhoneOtp(rawPhone, countryCode, userName, nestCode)
         if (success) {
@@ -542,7 +557,7 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     fun requestGoogleOtp(
         rawEmail: String,
         userName: String = "",
-        nestCode: String = "NEST-4821"
+        nestCode: String = "NEST-7492"
     ): Boolean {
         val success = authManager.requestGoogleOtp(rawEmail, userName, nestCode)
         if (success) {
@@ -560,6 +575,27 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
             }
         }
         return success
+    }
+
+    fun createNewNest(nestName: String, creatorName: String = ""): FamilyNest {
+        val created = authManager.createNewNest(nestName, creatorName)
+        _statusBanner.value = "Created family nest '${created.nestName}' (${created.nestNo})!"
+        return created
+    }
+
+    fun joinNest(nestNo: String, nestPass: String, customNestName: String? = null): Boolean {
+        val result = authManager.joinNest(nestNo, nestPass, customNestName)
+        return if (result.isSuccess) {
+            val nest = result.getOrThrow()
+            _statusBanner.value = "Connected to ${nest.nestName} (${nest.nestNo})!"
+            true
+        } else {
+            false
+        }
+    }
+
+    fun completeNestSetup() {
+        authManager.completeNestSetup()
     }
 
     fun resendActiveOtp(): Boolean {

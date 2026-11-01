@@ -460,4 +460,73 @@ class ExampleRobolectricTest {
         assertEquals(AuthState.UNAUTHENTICATED, authManager.authState.value)
         assertEquals(null, authManager.currentSession.value)
     }
+
+    @Test
+    fun testUnifiedLoginPhoneVsEmailRouting() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+        authManager.signOut()
+
+        // 1. Phone number input
+        val phoneSuccess = authManager.requestOtpForInput("9876543210", "+91", "John")
+        assertTrue(phoneSuccess)
+        assertEquals(AuthState.ENTER_OTP, authManager.authState.value)
+        assertEquals(AuthMethod.PHONE_SMS, authManager.activeChallenge.value?.method)
+
+        authManager.cancelOtpVerification()
+
+        // 2. Email input
+        val emailSuccess = authManager.requestOtpForInput("alex.nearnest@gmail.com", userName = "Alex")
+        assertTrue(emailSuccess)
+        assertEquals(AuthState.ENTER_OTP, authManager.authState.value)
+        assertEquals(AuthMethod.GOOGLE_GMAIL, authManager.activeChallenge.value?.method)
+    }
+
+    @Test
+    fun testCreateNewNestGeneratesUniqueCodes() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+
+        val newNest = authManager.createNewNest(nestName = "The Mukherjee Nest", creatorName = "Subhasish")
+        assertEquals("The Mukherjee Nest", newNest.nestName)
+        assertTrue(newNest.nestNo.startsWith("NEST-"))
+        assertEquals(9, newNest.nestNo.length) // NEST-XXXX
+        assertTrue(newNest.nestPass.startsWith("PASS-"))
+        assertEquals(9, newNest.nestPass.length) // PASS-XXXX
+        assertEquals(newNest.nestNo, authManager.currentNest.value.nestNo)
+        assertEquals(newNest.nestPass, authManager.currentNest.value.nestPass)
+
+        val shareText = newNest.getShareablePassText()
+        assertTrue(shareText.contains(newNest.nestNo))
+        assertTrue(shareText.contains(newNest.nestPass))
+    }
+
+    @Test
+    fun testJoinNestWithValidPass() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+
+        // Flexible format: "5821" and "9102" should normalize to "NEST-5821" and "PASS-9102"
+        val result = authManager.joinNest(rawNestNo = "5821", rawNestPass = "9102", customNestName = "Joined Family")
+        assertTrue(result.isSuccess)
+
+        val joined = result.getOrThrow()
+        assertEquals("NEST-5821", joined.nestNo)
+        assertEquals("PASS-9102", joined.nestPass)
+        assertEquals("Joined Family", joined.nestName)
+        assertEquals("NEST-5821", authManager.currentNest.value.nestNo)
+    }
+
+    @Test
+    fun testJoinNestWithInvalidCredentials() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authManager = AuthManager(context)
+
+        val emptyResult = authManager.joinNest(rawNestNo = "", rawNestPass = "")
+        assertTrue(emptyResult.isFailure)
+        assertTrue(authManager.authError.value != null)
+
+        val tooShortResult = authManager.joinNest(rawNestNo = "1", rawNestPass = "2")
+        assertTrue(tooShortResult.isFailure)
+    }
 }

@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -26,25 +31,32 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -70,10 +82,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.auth.FamilyNest
 import com.example.data.model.FamilyInvite
 import com.example.data.model.FamilyMember
 import com.example.data.model.InviteContactType
@@ -88,6 +103,7 @@ import com.example.ui.theme.SurfaceBorderDark
 import com.example.ui.theme.SurfaceCardDark
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
 
 @Composable
 fun FamilySafeZonesView(
@@ -99,6 +115,9 @@ fun FamilySafeZonesView(
     outgoingInvites: List<FamilyInvite> = emptyList(),
     incomingRequests: List<FamilyInvite> = emptyList(),
     currentUserSession: com.example.data.auth.UserSession? = null,
+    currentNest: FamilyNest = FamilyNest(),
+    onCreateNest: (String) -> Unit = {},
+    onJoinNest: (String, String) -> Boolean = { _, _ -> true },
     onSignOut: () -> Unit = {},
     onToggleOfflineMode: () -> Unit,
     onSyncOfflineCache: () -> Unit,
@@ -113,7 +132,12 @@ fun FamilySafeZonesView(
     onToggleSharing: (memberId: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var isInviteExpanded by remember { mutableStateOf(false) }
+    var isNestPassVisible by remember { mutableStateOf(false) }
+    var showJoinNestModal by remember { mutableStateOf(false) }
+    var showCreateNestModal by remember { mutableStateOf(false) }
+    var newNestNameInput by remember { mutableStateOf("") }
     var contactMethod by remember { mutableStateOf(InviteContactType.EMAIL) }
     var contactInput by remember { mutableStateOf("") }
     var nameInput by remember { mutableStateOf("") }
@@ -132,7 +156,7 @@ fun FamilySafeZonesView(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. Top Hub: Active Account Profile & Circle Header ---
+        // --- 1. Top Hub: Active Account Profile & Nest Header ---
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = Color(0xFF0F172A),
@@ -188,7 +212,7 @@ fun FamilySafeZonesView(
                             }
                         }
                         Text(
-                            text = "${currentUserSession?.contact ?: "Active Session"} • ID: ${currentUserSession?.familyNestCode ?: "NEST-4821"}",
+                            text = "${currentUserSession?.contact ?: "Active Session"} • Nest: ${currentNest.nestNo}",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 fontSize = 11.sp
@@ -197,46 +221,229 @@ fun FamilySafeZonesView(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = { isInviteExpanded = !isInviteExpanded },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isInviteExpanded) Color(0xFF334155) else AccentCyan,
-                            contentColor = if (isInviteExpanded) Color.White else Color(0xFF00363A)
-                        ),
+                    OutlinedButton(
+                        onClick = { showCreateNestModal = true },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            .height(36.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                     ) {
-                        Icon(
-                            imageVector = if (isInviteExpanded) Icons.Default.Close else Icons.Default.PersonAdd,
-                            contentDescription = "Invite",
-                            modifier = Modifier.size(15.dp)
-                        )
+                        Icon(Icons.Default.Add, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isInviteExpanded) "Close" else "Invite Member",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        Text(text = "New Nest", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showJoinNestModal = true },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                    ) {
+                        Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Join Nest", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
                         onClick = onSignOut,
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.height(38.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.6f)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRose)
                     ) {
-                        Text(text = "Sign Out", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Sign Out", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // --- 1B. Family Nest Credentials Card (Unique Nest No & Pass) ---
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1B2A)),
+            border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FamilyRestroom, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = currentNest.nestName,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = AccentCyan.copy(alpha = 0.15f),
+                        border = BorderStroke(0.5.dp, AccentCyan)
+                    ) {
+                        Text(
+                            text = "Nest Active",
+                            color = AccentCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Unique Nest No & Nest Pass Info Box
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF070E18),
+                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Nest No
+                        Column {
+                            Text("UNIQUE NEST NO", color = TextTertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = currentNest.nestNo,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy Nest No",
+                                    tint = AccentCyan,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(ClipData.newPlainText("Nest No", currentNest.nestNo))
+                                            Toast.makeText(context, "Copied Nest No: ${currentNest.nestNo}", Toast.LENGTH_SHORT).show()
+                                        }
+                                )
+                            }
+                        }
+
+                        // Vertical Divider
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(32.dp)
+                                .background(Color(0xFF1E293B))
+                        )
+
+                        // Nest Pass
+                        Column {
+                            Text("SECRET NEST PASS", color = TextTertiary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (isNestPassVisible) currentNest.nestPass else "••••••••",
+                                    color = AccentCyan,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = if (isNestPassVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle Pass",
+                                    tint = TextSecondary,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { isNestPassVisible = !isNestPassVisible }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy Pass",
+                                    tint = AccentCyan,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(ClipData.newPlainText("Nest Pass", currentNest.nestPass))
+                                            Toast.makeText(context, "Copied Nest Pass to clipboard", Toast.LENGTH_SHORT).show()
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Action Buttons Row: Share Nest Pass & Connect to Another Nest
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val shareText = currentNest.getShareablePassText()
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Share NearNest Pass")
+                            shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(shareIntent)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Share Nest Pass", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { isInviteExpanded = !isInviteExpanded },
+                        modifier = Modifier.height(38.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Icon(
+                            imageVector = if (isInviteExpanded) Icons.Default.Close else Icons.Default.PersonAdd,
+                            contentDescription = null,
+                            tint = AccentCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (isInviteExpanded) "Close" else "Invite", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1301,6 +1508,110 @@ fun FamilySafeZonesView(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal to Join Another Nest with Nest No & Nest Pass
+    if (showJoinNestModal) {
+        JoinNestDialog(
+            currentNest = currentNest,
+            onDismiss = { showJoinNestModal = false },
+            onConnect = { nestNo, nestPass ->
+                val ok = onJoinNest(nestNo, nestPass)
+                if (ok) {
+                    showJoinNestModal = false
+                    Toast.makeText(context, "Connected to Nest $nestNo!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    // Modal to Create a Brand New Family Nest
+    if (showCreateNestModal) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showCreateNestModal = false }) {
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceCardDark),
+                border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(36.dp))
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Create New Family Nest",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 18.sp
+                        )
+                    )
+
+                    Text(
+                        text = "Enter a name for your family group. A unique Nest No and Nest Pass will be generated for your family.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        ),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = newNestNameInput,
+                        onValueChange = { newNestNameInput = it },
+                        label = { Text("Family Nest Name", color = Color(0xFF94A3B8)) },
+                        placeholder = { Text("e.g. The Mukherjee Family", color = Color(0xFF64748B)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentCyan,
+                            unfocusedBorderColor = SurfaceBorderDark,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Button(
+                        onClick = {
+                            onCreateNest(newNestNameInput)
+                            showCreateNestModal = false
+                            Toast.makeText(context, "New Nest Created!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = Color(0xFF00363A))
+                    ) {
+                        Text("Generate Nest & Connect", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedButton(
+                        onClick = { showCreateNestModal = false },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, SurfaceBorderDark),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                    ) {
+                        Text("Cancel", fontSize = 12.sp)
                     }
                 }
             }
