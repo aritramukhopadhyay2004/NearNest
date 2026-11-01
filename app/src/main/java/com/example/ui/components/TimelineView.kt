@@ -78,217 +78,225 @@ fun TimelineView(
     val selectedMember = members.find { it.id == selectedMemberId } ?: members.firstOrNull()
     val memberVisits = visits.filter { it.userId == selectedMemberId }
 
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(BackgroundDark)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // --- 1. Member Selector Tabs ---
-        Surface(
-            color = SurfaceCardDark,
-            border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorderDark),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // --- Top Connected Line Graph View (Today & Monthly) ---
-                if (selectedMember != null) {
-                    val monthlyHistory = remember(selectedMember.id) {
-                        FamilyDataSeed.getMonthlyMovementHistory(selectedMember.id)
-                    }
-                    TimelineGraphCard(
-                        selectedMember = selectedMember,
-                        visits = memberVisits,
-                        monthlyRecords = monthlyHistory,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
+        // --- 1. Top Traversal Map Card (Above Movement Record Graph) ---
+        if (selectedMember != null) {
+            item(key = "traversal_map_${selectedMember.id}") {
+                Spacer(modifier = Modifier.height(6.dp))
+                TimelineTraversalMapCard(
+                    selectedMember = selectedMember,
+                    visits = memberVisits,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    members.forEach { m ->
-                        val isSelected = m.id == selectedMemberId
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isSelected) Color(m.colorHex) else Color(0xFF1E293B),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSelected) Color.White else Color(0xFF334155)
-                            ),
-                            modifier = Modifier
-                                .clickable { onSelectMember(m.id) }
-                                .testTag("timeline_filter_${m.name.lowercase()}")
+            // --- 2. Movement Trajectory & Record Graph (Today & Monthly) ---
+            item(key = "graph_${selectedMember.id}") {
+                val monthlyHistory = remember(selectedMember.id) {
+                    FamilyDataSeed.getMonthlyMovementHistory(selectedMember.id)
+                }
+                TimelineGraphCard(
+                    selectedMember = selectedMember,
+                    visits = memberVisits,
+                    monthlyRecords = monthlyHistory,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // --- 3. Member Selector Row ---
+        item(key = "member_selector") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                members.forEach { m ->
+                    val isSelected = m.id == selectedMemberId
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) Color(m.colorHex) else Color(0xFF1E293B),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) Color.White else Color(0xFF334155)
+                        ),
+                        modifier = Modifier
+                            .clickable { onSelectMember(m.id) }
+                            .testTag("timeline_filter_${m.name.lowercase()}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = m.name.take(1),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = Color.White
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = m.name,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
+                                    text = m.name.take(1),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    color = Color.White
                                 )
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = m.name,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            )
                         }
                     }
                 }
+            }
+        }
 
-                // Live Movement Telemetry & Capture Card
-                if (selectedMember != null) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFF0F172A),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(CircleShape)
-                                            .background(AccentEmerald)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "LIVE TELEMETRY ACTIVE",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = AccentEmerald,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.8.sp
-                                        )
-                                    )
-                                }
-
+        // --- 4. Live Movement Telemetry & Capture Card ---
+        if (selectedMember != null) {
+            item(key = "live_telemetry_${selectedMember.id}") {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF0F172A),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(AccentEmerald)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "${selectedMember.lastSeenTime12h} • ${selectedMember.batteryPercent}%",
+                                    text = "LIVE TELEMETRY ACTIVE",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = TextSecondary,
-                                        fontSize = 11.sp
+                                        color = AccentEmerald,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp
                                     )
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(6.dp))
-
                             Text(
-                                text = "Current Position: ${selectedMember.currentPlace}",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
+                                text = "${selectedMember.lastSeenTime12h} • ${selectedMember.batteryPercent}%",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
                                 )
                             )
+                        }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Text(
+                            text = "Current Position: ${selectedMember.currentPlace}",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = AccentCyan.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onCaptureLiveGps() }
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = AccentCyan.copy(alpha = 0.2f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentCyan),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onCaptureLiveGps() }
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.MyLocation,
-                                            contentDescription = "GPS",
-                                            tint = AccentCyan,
-                                            modifier = Modifier.size(15.dp)
+                                    Icon(
+                                        imageVector = Icons.Default.MyLocation,
+                                        contentDescription = "GPS",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Record Real GPS",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = AccentCyan,
+                                            fontWeight = FontWeight.Bold
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "Record Real GPS",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = AccentCyan,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        )
-                                    }
+                                    )
                                 }
+                            }
 
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF1E293B),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onSimulatePing() }
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF1E293B),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onSimulatePing() }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.DirectionsWalk,
-                                            contentDescription = "Simulate",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(15.dp)
+                                    Icon(
+                                        imageVector = Icons.Default.DirectionsWalk,
+                                        contentDescription = "Simulate",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Simulate Move",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Medium
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "Simulate Move",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        )
-                                    }
+                                    )
                                 }
+                            }
 
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF1E293B),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-                                    modifier = Modifier.clickable { onViewOnMap() }
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF1E293B),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                modifier = Modifier.clickable { onViewOnMap() }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Map,
-                                            contentDescription = "Map Traversal",
-                                            tint = AccentCyan,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Map,
+                                        contentDescription = "Map Traversal",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(15.dp)
+                                    )
                                 }
                             }
                         }
@@ -297,21 +305,18 @@ fun TimelineView(
             }
         }
 
-        // --- 2. Timeline Visits Feed ---
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            itemsIndexed(memberVisits, key = { _, v -> v.id }) { index, visit ->
-                TimelineVisitCard(
-                    visit = visit,
-                    index = index,
-                    isLast = index == memberVisits.size - 1,
-                    memberColor = selectedMember?.let { Color(it.colorHex) } ?: AccentCyan
-                )
-            }
+        // --- 5. Timeline Visits Feed ---
+        itemsIndexed(memberVisits, key = { _, v -> v.id }) { index, visit ->
+            TimelineVisitCard(
+                visit = visit,
+                index = index,
+                isLast = index == memberVisits.size - 1,
+                memberColor = selectedMember?.let { Color(it.colorHex) } ?: AccentCyan
+            )
+        }
+
+        item(key = "timeline_bottom_space") {
+            Spacer(modifier = Modifier.height(18.dp))
         }
     }
 }

@@ -7,6 +7,8 @@ import com.example.data.local.AppDatabase
 import com.example.data.model.LocationRecord
 import com.example.data.repository.FamilyDataSeed
 import com.example.data.repository.FamilyTrackingRepository
+import com.example.ui.components.buildTodayTraversalRoute
+import com.example.ui.components.TraversalPointType
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -347,5 +349,23 @@ class ExampleRobolectricTest {
         val emmaHistory = FamilyDataSeed.getMonthlyMovementHistory("user_emma")
         assertEquals(31, emmaHistory.size)
         assertTrue(emmaHistory.any { it.topPlace.contains("Oakridge", ignoreCase = true) })
+    }
+
+    @Test
+    fun testTodayTraversalRouteWithTurningPointsAndStops() {
+        val john = FamilyDataSeed.familyMembers.first { it.id == "user_john" }
+        val johnVisits = FamilyDataSeed.allTimelineVisits.filter { it.userId == "user_john" }
+
+        val route = buildTodayTraversalRoute(john, johnVisits)
+
+        val stops = route.filter { it.type == TraversalPointType.STOP }
+        val turns = route.filter { it.type == TraversalPointType.TURNING_POINT }
+
+        assertEquals(johnVisits.size, stops.size)
+        assertTrue(turns.isNotEmpty())
+        assertTrue(stops.all { it.isStop })
+        assertTrue(stops.all { it.dwellDurationText.contains("Dwell", ignoreCase = true) })
+        assertEquals(1, stops.first().stopIndex)
+        assertEquals(johnVisits.size, stops.last().stopIndex)
     }
 }
