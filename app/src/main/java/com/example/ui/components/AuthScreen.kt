@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.R
 import com.example.data.auth.AuthMethod
+import com.example.data.auth.AuthPage
 import com.example.data.auth.AuthState
 import com.example.data.auth.FamilyNest
 import com.example.data.auth.OtpChallenge
@@ -134,35 +135,36 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
     val authError by viewModel.authError.collectAsState()
     val lastDeliveredOtpMessage by viewModel.lastDeliveredOtpMessage.collectAsState()
     val currentNest by viewModel.currentNest.collectAsState()
+    val currentAuthPage by viewModel.currentAuthPage.collectAsState()
     val context = LocalContext.current
 
-    var unifiedInput by remember { mutableStateOf("") }
     var nameInput by remember { mutableStateOf("") }
     var showNestJoinDialog by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF04070D),
-                        Color(0xFF0B132B),
-                        Color(0xFF070B14)
+    when {
+        authState == AuthState.ENTER_OTP && activeChallenge != null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF04070D),
+                                Color(0xFF0B132B),
+                                Color(0xFF070B14)
+                            )
+                        )
                     )
-                )
-            )
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (authState == AuthState.ENTER_OTP && activeChallenge != null) {
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                 // ==========================================
                 // OTP Verification View
                 // ==========================================
@@ -194,7 +196,32 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
                         viewModel.cancelOtpVerification()
                     }
                 )
-            } else if (authState == AuthState.NEST_SETUP) {
+            }
+        }
+    }
+    authState == AuthState.NEST_SETUP -> {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF04070D),
+                            Color(0xFF0B132B),
+                            Color(0xFF070B14)
+                        )
+                    )
+                )
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 // ==========================================
                 // Nest Setup View (Create or Join with Nest Pass)
                 // ==========================================
@@ -216,312 +243,20 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
                         viewModel.completeNestSetup()
                     }
                 )
-            } else {
-                // ==========================================
-                // Pinterest-Style Login / Register View
-                // ==========================================
-
-                // 1. Top Mosaic Preview Collage
-                PinterestMosaicHeroCollage()
-
-                // 2. Centered Circular App Emblem (overlapping collage bottom)
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp)
-                        .size(68.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF00ADB5))
-                        .border(3.dp, Color(0xFF38E8F5), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.app_logo),
-                        contentDescription = "NearNest Logo",
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 3. Bold Inspiring Headline
-                Text(
-                    text = "Keep your loved ones\nsafe & close",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        fontSize = 26.sp,
-                        lineHeight = 32.sp,
-                        letterSpacing = (-0.5).sp,
-                        textAlign = TextAlign.Center
-                    )
-                )
-
-                Text(
-                    text = "AI-Powered Family Safety & Movement Tracking",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 4. Pinterest-Style Input & Auth Form
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Unified Single Input Field (Email or Mobile Phone)
-                    val isEmail = unifiedInput.contains("@")
-                    val isPhone = unifiedInput.any { it.isDigit() } && !isEmail
-
-                    OutlinedTextField(
-                        value = unifiedInput,
-                        onValueChange = { unifiedInput = it },
-                        label = { Text("Email or Mobile Phone", color = TextTertiary, fontSize = 13.sp) },
-                        placeholder = { Text("e.g. name@gmail.com or 98765 43210", color = TextTertiary.copy(alpha = 0.5f), fontSize = 13.sp) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = when {
-                                    isEmail -> Icons.Default.Email
-                                    isPhone -> Icons.Default.Phone
-                                    else -> Icons.Default.AccountCircle
-                                },
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        trailingIcon = {
-                            if (isEmail || isPhone) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = AccentCyan.copy(alpha = 0.15f),
-                                    modifier = Modifier.padding(end = 8.dp)
-                                ) {
-                                    Text(
-                                        text = if (isEmail) "GMAIL OTP" else "SMS OTP",
-                                        color = AccentCyan,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = if (unifiedInput.any { it.isDigit() } && !isEmail) KeyboardType.Phone else KeyboardType.Email
-                        ),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentCyan,
-                            unfocusedBorderColor = Color(0xFF334155),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedContainerColor = Color(0xFF0F172A),
-                            unfocusedContainerColor = Color(0xFF0F172A)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-
-                    // Error Banner
-                    AnimatedVisibility(visible = authError != null) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = AccentRose.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.4f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AccentRose, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = authError ?: "",
-                                    color = AccentRose,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 5. "Continue" Primary Action Button
-                    Button(
-                        onClick = {
-                            if (unifiedInput.isBlank()) {
-                                Toast.makeText(context, "Please enter your email or phone number.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                viewModel.requestOtpForInput(unifiedInput, userName = nameInput)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentCyan,
-                            contentColor = Color(0xFF00363A)
-                        )
-                    ) {
-                        Text(
-                            text = "Continue",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
-                            letterSpacing = 0.3.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 6. "Or" Divider
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = Color(0xFF334155),
-                            thickness = 1.dp
-                        )
-                        Text(
-                            text = "Or",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 14.dp)
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = Color(0xFF334155),
-                            thickness = 1.dp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 7. "Continue with Google" Button
-                    Button(
-                        onClick = {
-                            val googleTarget = if (unifiedInput.contains("@")) unifiedInput else "sarah.nearnest@gmail.com"
-                            viewModel.requestGoogleOtp(googleTarget, userName = nameInput)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0F172A),
-                            contentColor = Color.White
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFF334155))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_google_logo),
-                                contentDescription = "Google Logo",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Continue with Google",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 8. Nest Pass Quick Join Shortcut
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0F172A).copy(alpha = 0.6f),
-                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.3f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showNestJoinDialog = true }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(Icons.Default.Key, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Have a Family Nest Pass? Connect directly",
-                                color = AccentCyan,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // 9. Fast 1-Tap Demo Testing Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { viewModel.quickDemoLogin(AuthMethod.PHONE_SMS) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
-                        ) {
-                            Text("⚡ John (Phone)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = { viewModel.quickDemoLogin(AuthMethod.GOOGLE_GMAIL) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, Color(0xFFD946EF).copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD946EF))
-                        ) {
-                            Text("⚡ Sarah (Google)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // 10. Legal Terms of Service Disclaimer
-                    Text(
-                        text = "By continuing, you agree to NearNest's Terms of Service and acknowledge that you've read our Privacy Policy. Notice at collection.",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextTertiary,
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp,
-                            textAlign = TextAlign.Center
-                        ),
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
             }
+        }
+    }
+        currentAuthPage == AuthPage.SIGNUP -> {
+            ClerkSignUpScreen(
+                viewModel = viewModel,
+                onNavigateToLogin = { viewModel.setAuthPage(AuthPage.LOGIN) }
+            )
+        }
+        else -> {
+            ClerkLoginScreen(
+                viewModel = viewModel,
+                onNavigateToSignUp = { viewModel.setAuthPage(AuthPage.SIGNUP) }
+            )
         }
     }
 

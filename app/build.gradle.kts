@@ -57,8 +57,8 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
   buildFeatures {
     compose = true
@@ -75,6 +75,21 @@ android {
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
+  }
+}
+
+configurations.all {
+  resolutionStrategy {
+    force("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
+    force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.10")
+    force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.10")
+    force("org.jetbrains.kotlin:kotlin-reflect:2.2.10")
+  }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+  compilerOptions {
+    freeCompilerArgs.add("-Xskip-metadata-version-check")
   }
 }
 
@@ -116,6 +131,8 @@ dependencies {
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
+  // Clerk Authentication SDK for Android
+  implementation(libs.clerk.android.api)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 

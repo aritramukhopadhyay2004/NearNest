@@ -7,7 +7,16 @@ import java.util.UUID
  */
 enum class AuthMethod(val displayName: String, val channelName: String) {
     PHONE_SMS("Mobile Phone", "SMS"),
-    GOOGLE_GMAIL("Google Account", "Gmail")
+    GOOGLE_GMAIL("Google Account", "Gmail"),
+    CLERK_AUTH("Clerk Auth", "Clerk")
+}
+
+/**
+ * Authentication Screen Pages for Clerk integration
+ */
+enum class AuthPage {
+    LOGIN,
+    SIGNUP
 }
 
 /**

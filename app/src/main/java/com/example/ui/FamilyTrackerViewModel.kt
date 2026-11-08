@@ -10,10 +10,12 @@ import com.example.data.local.AppDatabase
 import com.example.data.location.LocationServiceManager
 import com.example.data.auth.AuthManager
 import com.example.data.auth.AuthMethod
+import com.example.data.auth.AuthPage
 import com.example.data.auth.AuthState
 import com.example.data.auth.FamilyNest
 import com.example.data.auth.OtpChallenge
 import com.example.data.auth.UserSession
+import com.example.data.auth.clerk.ClerkAuthResult
 import com.example.data.model.ChatMessage
 import com.example.data.model.FamilyInvite
 import com.example.data.model.FamilyMember
@@ -50,6 +52,9 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     val activeOtpChallenge: StateFlow<OtpChallenge?> = authManager.activeChallenge
     val authError: StateFlow<String?> = authManager.authError
     val lastDeliveredOtpMessage: StateFlow<String?> = authManager.lastDeliveredOtpMessage
+    val currentAuthPage: StateFlow<AuthPage> = authManager.currentAuthPage
+    val isAuthProcessing: StateFlow<Boolean> = authManager.isProcessing
+    val clerkVerificationPending: StateFlow<ClerkAuthResult.NeedsVerification?> = authManager.clerkVerificationPending
 
     // Navigation & Tab State
     private val _selectedTab = MutableStateFlow(0)
@@ -575,6 +580,82 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
             }
         }
         return success
+    }
+
+    fun setAuthPage(page: AuthPage) {
+        authManager.setAuthPage(page)
+    }
+
+    /**
+     * Authenticates user using Clerk signIn() method
+     */
+    fun signIn(
+        identifier: String,
+        password: String,
+        onComplete: ((ClerkAuthResult) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = authManager.signInWithClerk(identifier, password)
+            if (result is ClerkAuthResult.Success) {
+                _statusBanner.value = "Welcome to NearNest! Authenticated with Clerk."
+                currentUserSession.value?.let { session ->
+                    _selectedMemberId.value = session.userId
+                }
+            }
+            onComplete?.invoke(result)
+        }
+    }
+
+    /**
+     * Registers new user using Clerk signUp() method
+     */
+    fun signUp(
+        email: String,
+        password: String,
+        firstName: String = "",
+        lastName: String = "",
+        phoneNumber: String = "",
+        onComplete: ((ClerkAuthResult) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = authManager.signUpWithClerk(
+                email = email,
+                password = password,
+                firstName = firstName,
+                lastName = lastName,
+                phoneNumber = phoneNumber
+            )
+            if (result is ClerkAuthResult.Success) {
+                _statusBanner.value = "Clerk account created! Welcome to NearNest."
+                currentUserSession.value?.let { session ->
+                    _selectedMemberId.value = session.userId
+                }
+            }
+            onComplete?.invoke(result)
+        }
+    }
+
+    /**
+     * Verifies Clerk OTP / email code
+     */
+    fun verifyClerkCode(
+        code: String,
+        onComplete: ((ClerkAuthResult) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = authManager.verifyClerkCode(code)
+            if (result is ClerkAuthResult.Success) {
+                _statusBanner.value = "Clerk verification successful! Welcome."
+                currentUserSession.value?.let { session ->
+                    _selectedMemberId.value = session.userId
+                }
+            }
+            onComplete?.invoke(result)
+        }
+    }
+
+    fun dismissClerkVerification() {
+        authManager.dismissClerkVerification()
     }
 
     fun createNewNest(nestName: String, creatorName: String = ""): FamilyNest {

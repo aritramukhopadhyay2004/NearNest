@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-11-01T23:00:52.9544487+05:30",
-    "fileSizeBytes":  23391916,
-    "fileSizeMb":  22.31,
-    "buildDurationSecs":  18.1,
+    "buildDate":  "2026-11-08T12:23:02.2151595+05:30",
+    "fileSizeBytes":  27980990,
+    "fileSizeMb":  26.68,
+    "buildDurationSecs":  270.8,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "894c0ea",
+    "gitCommit":  "87c13d1",
     "gitMessage":  [
-                       "feat: add user authentication with Phone SMS and Google Gmail OTP verification",
+                       "feat(auth): Pinterest-style login UI and unique Nest No + Nest Pass family connect system",
                        ""
                    ],
     "checkWindowDays":  20

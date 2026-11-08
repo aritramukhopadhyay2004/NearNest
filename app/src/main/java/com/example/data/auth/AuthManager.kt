@@ -46,6 +46,151 @@ class AuthManager(
     private val _lastDeliveredOtpMessage = MutableStateFlow<String?>(null)
     val lastDeliveredOtpMessage: StateFlow<String?> = _lastDeliveredOtpMessage.asStateFlow()
 
+    val clerkClient = com.example.data.auth.clerk.ClerkAuthClient()
+
+    private val _currentAuthPage = MutableStateFlow(AuthPage.LOGIN)
+    val currentAuthPage: StateFlow<AuthPage> = _currentAuthPage.asStateFlow()
+
+    private val _clerkVerificationPending = MutableStateFlow<com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification?>(null)
+    val clerkVerificationPending: StateFlow<com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification?> = _clerkVerificationPending.asStateFlow()
+
+    fun setAuthPage(page: AuthPage) {
+        _currentAuthPage.value = page
+        _authError.value = null
+    }
+
+    /**
+     * Authenticates existing user using Clerk signIn() method
+     */
+    suspend fun signInWithClerk(identifier: String, password: String): com.example.data.auth.clerk.ClerkAuthResult {
+        _isProcessing.value = true
+        _authError.value = null
+        val result = clerkClient.signIn(identifier, password)
+        _isProcessing.value = false
+
+        when (result) {
+            is com.example.data.auth.clerk.ClerkAuthResult.Success -> {
+                completeClerkLogin(result.session)
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification -> {
+                _clerkVerificationPending.value = result
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.Error -> {
+                _authError.value = result.message
+            }
+        }
+        return result
+    }
+
+    /**
+     * Registers new user account using Clerk signUp() method
+     */
+    suspend fun signUpWithClerk(
+        email: String,
+        password: String,
+        firstName: String = "",
+        lastName: String = "",
+        phoneNumber: String = ""
+    ): com.example.data.auth.clerk.ClerkAuthResult {
+        _isProcessing.value = true
+        _authError.value = null
+        val result = clerkClient.signUp(
+            email = email,
+            password = password,
+            firstName = firstName,
+            lastName = lastName,
+            phoneNumber = phoneNumber
+        )
+        _isProcessing.value = false
+
+        when (result) {
+            is com.example.data.auth.clerk.ClerkAuthResult.Success -> {
+                completeClerkLogin(result.session)
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification -> {
+                _clerkVerificationPending.value = result
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.Error -> {
+                _authError.value = result.message
+            }
+        }
+        return result
+    }
+
+    /**
+     * Verifies Clerk OTP / email code
+     */
+    suspend fun verifyClerkCode(code: String): com.example.data.auth.clerk.ClerkAuthResult {
+        val pending = _clerkVerificationPending.value
+        if (pending == null) {
+            val err = "No pending Clerk verification found."
+            _authError.value = err
+            return com.example.data.auth.clerk.ClerkAuthResult.Error(err)
+        }
+
+        _isProcessing.value = true
+        _authError.value = null
+        val result = clerkClient.attemptVerification(
+            code = code,
+            signUpId = pending.signUpId,
+            signInId = pending.signInId,
+            fallbackEmail = pending.target
+        )
+        _isProcessing.value = false
+
+        when (result) {
+            is com.example.data.auth.clerk.ClerkAuthResult.Success -> {
+                _clerkVerificationPending.value = null
+                completeClerkLogin(result.session)
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification -> {
+                _clerkVerificationPending.value = result
+            }
+            is com.example.data.auth.clerk.ClerkAuthResult.Error -> {
+                _authError.value = result.message
+            }
+        }
+        return result
+    }
+
+    fun dismissClerkVerification() {
+        _clerkVerificationPending.value = null
+    }
+
+    private fun completeClerkLogin(clerkSession: com.example.data.auth.clerk.ClerkSession) {
+        val now12h = timeFormat12h.format(Date())
+        val nest = _currentNest.value
+        val user = clerkSession.user
+        val resolvedName = user?.displayName?.ifBlank { null }
+            ?: user?.email?.substringBefore("@")
+            ?: "NearNest Member"
+
+        val session = UserSession(
+            userId = user?.id ?: "user_${clerkSession.sessionId.takeLast(8)}",
+            displayName = resolvedName,
+            authMethod = AuthMethod.CLERK_AUTH,
+            contact = user?.email?.ifBlank { user.phoneNumber } ?: "clerk_auth",
+            avatarColorHex = 0xFF00ADB5,
+            nestNo = nest.nestNo,
+            nestPass = nest.nestPass,
+            nestName = nest.nestName,
+            token = clerkSession.token,
+            loginTimestamp12h = now12h,
+            isVerified = true
+        )
+
+        prefsManager.saveSession(session)
+        _currentSession.value = session
+        _activeChallenge.value = null
+        _clerkVerificationPending.value = null
+        _authState.value = AuthState.AUTHENTICATED
+        _authError.value = null
+
+        repository?.let { repo ->
+            syncUserWithFamily(session, repo)
+        }
+    }
+
     /**
      * Unified Login: Dispatches OTP based on input format (Phone SMS or Google Gmail)
      */
