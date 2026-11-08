@@ -12,9 +12,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,31 +20,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,27 +43,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.auth.AuthState
 import com.example.ui.FamilyTrackerViewModel
-import com.example.ui.components.AssistantChatView
 import com.example.ui.components.AuthScreen
 import com.example.ui.components.FamilySafeZonesView
-import com.example.ui.components.InteractiveMapView
 import com.example.ui.components.LiveVoiceConversationDialog
-import com.example.ui.components.TimelineView
-import com.example.ui.components.UserSessionDialog
+import com.example.ui.components.NearNestAccountInfoView
+import com.example.ui.components.NearNestAiChatView
+import com.example.ui.components.NearNestBottomNav
+import com.example.ui.components.NearNestDailyTraversalView
+import com.example.ui.components.NearNestMapView
+import com.example.ui.components.NearNestNotificationsView
+import com.example.ui.components.NearNestSettingsView
 import com.example.ui.theme.AccentCyan
-import com.example.ui.theme.BackgroundDark
+import com.example.ui.theme.BrandBlue
 import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.SurfaceBorderDark
-import com.example.ui.theme.SurfaceCardDark
+
+enum class MainSubScreen {
+    NONE,
+    ACCOUNT_INFO,
+    NOTIFICATIONS,
+    FAMILY_NEST_MANAGEMENT
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -100,7 +94,7 @@ class MainActivity : ComponentActivity() {
 fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     val currentUserSession by viewModel.currentUserSession.collectAsState()
     val currentNest by viewModel.currentNest.collectAsState()
-    var isUserSessionDialogOpen by remember { mutableStateOf(false) }
+    var currentSubScreen by remember { mutableStateOf(MainSubScreen.NONE) }
 
     val selectedTab by viewModel.selectedTab.collectAsState()
     val selectedMemberId by viewModel.selectedMemberId.collectAsState()
@@ -109,33 +103,16 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
     val visits by viewModel.timelineVisits.collectAsState()
     val isOfflineMode by viewModel.isOfflineMode.collectAsState()
     val pendingSyncCount by viewModel.pendingSyncCount.collectAsState()
-    val lastSyncLatencyMs by viewModel.lastSyncLatencyMs.collectAsState()
     val isBackgroundTrackingActive by viewModel.isBackgroundTrackingActive.collectAsState()
     val outgoingInvites by viewModel.outgoingInvites.collectAsState()
     val incomingRequests by viewModel.incomingRequests.collectAsState()
 
     val chatMessages by viewModel.chatMessages.collectAsState()
     val isAiThinking by viewModel.isAiThinking.collectAsState()
-    val isRawJsonVisible by viewModel.isRawJsonVisible.collectAsState()
-    val rawJsonContext by viewModel.rawJsonContext.collectAsState()
     val statusBanner by viewModel.statusBanner.collectAsState()
 
-    val selectedModelType by viewModel.selectedModelType.collectAsState()
-    val isMapsGroundingEnabled by viewModel.isMapsGroundingEnabled.collectAsState()
-    val isRecordingVoice by viewModel.isRecordingVoice.collectAsState()
     val isLiveVoiceActive by viewModel.isLiveVoiceActive.collectAsState()
     val liveVoiceLatestReply by viewModel.liveVoiceLatestReply.collectAsState()
-
-    if (isUserSessionDialogOpen && currentUserSession != null) {
-        UserSessionDialog(
-            session = currentUserSession!!,
-            onDismiss = { isUserSessionDialogOpen = false },
-            onSignOut = {
-                isUserSessionDialogOpen = false
-                viewModel.signOut()
-            }
-        )
-    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -156,343 +133,255 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         if (viewModel.locationServiceManager.hasLocationPermission()) {
             viewModel.startContinuousLiveTracking()
         }
     }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundDark),
-        topBar = {
-            Surface(
-                color = SurfaceCardDark,
-                border = BorderStroke(1.dp, SurfaceBorderDark),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.app_logo),
-                            contentDescription = "NearNest Logo",
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "NearNest",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            )
-                            Text(
-                                text = "AI Movement Assistant",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = AccentCyan,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            )
-                        }
-                    }
-
-                    // User Profile badge & Radar status
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        currentUserSession?.let { session ->
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF0F172A),
-                                border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.5f)),
-                                modifier = Modifier.clickable { isUserSessionDialogOpen = true }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(session.avatarColorHex)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = session.displayName.take(1).uppercase(),
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = session.displayName.substringBefore(" ").take(8),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-
-                        // Mode indicator badge
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF0F172A),
-                            border = BorderStroke(1.dp, Color(0xFF1E293B))
-                        ) {
-                            Text(
-                                text = if (isOfflineMode) "Offline" else "Live Radar",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (isOfflineMode) Color(0xFFEF4444) else Color(0xFF10B981),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
-                                ),
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = SurfaceCardDark,
-                tonalElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                val navItems = listOf(
-                    Triple(0, "Live Map", Icons.Default.Map),
-                    Triple(1, "AI Assistant", Icons.Default.AutoAwesome),
-                    Triple(2, "Timeline", Icons.Default.Timeline),
-                    Triple(3, "Family & Zones", Icons.Default.People)
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (currentSubScreen) {
+            MainSubScreen.ACCOUNT_INFO -> {
+                NearNestAccountInfoView(
+                    currentUserSession = currentUserSession,
+                    onSaveProfile = { firstName, lastName, email, phone ->
+                        viewModel.updateCurrentUserProfile("$firstName $lastName", email, phone)
+                        currentSubScreen = MainSubScreen.NONE
+                    },
+                    onNavigateBack = { currentSubScreen = MainSubScreen.NONE }
                 )
+            }
 
-                navItems.forEach { (tabIndex, title, icon) ->
-                    val isSelected = selectedTab == tabIndex
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { viewModel.setSelectedTab(tabIndex) },
-                        icon = {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = title,
-                                modifier = Modifier.size(24.dp)
-                            )
+            MainSubScreen.NOTIFICATIONS -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    NearNestNotificationsView(
+                        onNavigateBack = { currentSubScreen = MainSubScreen.NONE }
+                    )
+                    NearNestBottomNav(
+                        selectedTab = selectedTab,
+                        onTabSelected = { tab ->
+                            currentSubScreen = MainSubScreen.NONE
+                            viewModel.setSelectedTab(tab)
                         },
-                        label = {
-                            Text(
-                                text = title,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF00363A),
-                            selectedTextColor = AccentCyan,
-                            indicatorColor = AccentCyan,
-                            unselectedIconColor = Color(0xFF94A3B8),
-                            unselectedTextColor = Color(0xFF94A3B8)
-                        ),
-                        modifier = Modifier.testTag("nav_tab_$tabIndex")
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
             }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (selectedTab) {
-                0 -> InteractiveMapView(
-                    members = members,
-                    geofences = geofences,
-                    timelineVisits = visits,
-                    selectedMemberId = selectedMemberId,
-                    isOfflineMode = isOfflineMode,
-                    syncLatencyMs = lastSyncLatencyMs,
-                    onSelectMember = { viewModel.setSelectedMember(it) },
-                    onSimulatePing = { viewModel.triggerLiveLocationPing() },
-                    onCaptureRealGps = {
-                        if (viewModel.locationServiceManager.hasLocationPermission()) {
-                            viewModel.captureRealGpsLocation()
-                        } else {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
-                            )
-                        }
-                    },
-                    onToggleOffline = { viewModel.toggleOfflineMode() }
-                )
 
-                1 -> AssistantChatView(
-                    messages = chatMessages,
-                    isAiThinking = isAiThinking,
-                    isRawJsonVisible = isRawJsonVisible,
-                    rawJsonContext = rawJsonContext,
-                    selectedModelType = selectedModelType,
-                    isMapsGroundingEnabled = isMapsGroundingEnabled,
-                    isRecordingVoice = isRecordingVoice,
-                    onSelectModel = { viewModel.setModelType(it) },
-                    onToggleMapsGrounding = { viewModel.toggleMapsGrounding() },
-                    onStartVoiceRecording = {
-                        if (viewModel.audioRecordingManager.hasRecordPermission()) {
-                            viewModel.startVoiceRecording()
-                        } else {
-                            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    onStopVoiceRecording = { viewModel.stopVoiceRecordingAndTranscribe() },
-                    onLaunchLiveVoice = { viewModel.toggleLiveVoiceMode() },
-                    onClearHistory = { viewModel.clearChatHistory() },
-                    onSendMessage = { viewModel.sendUserMessage(it) },
-                    onTriggerPromptInjectionTest = { viewModel.triggerPromptInjectionTest() },
-                    onTriggerRateLimitTest = { viewModel.triggerRateLimitTest() },
-                    onToggleRawJson = { viewModel.toggleRawJsonVisibility() }
-                )
-
-                2 -> TimelineView(
-                    members = members,
-                    visits = visits,
-                    selectedMemberId = selectedMemberId,
-                    onSelectMember = { viewModel.setSelectedMember(it) },
-                    onCaptureLiveGps = {
-                        if (viewModel.locationServiceManager.hasLocationPermission()) {
-                            viewModel.captureRealGpsLocation()
-                        } else {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
-                            )
-                        }
-                    },
-                    onSimulatePing = { viewModel.triggerLiveLocationPing() },
-                    onViewOnMap = { viewModel.setSelectedTab(0) }
-                )
-
-                3 -> FamilySafeZonesView(
-                    members = members,
-                    geofences = geofences,
-                    isOfflineMode = isOfflineMode,
-                    pendingSyncCount = pendingSyncCount,
-                    isBackgroundTrackingActive = isBackgroundTrackingActive,
-                    outgoingInvites = outgoingInvites,
-                    incomingRequests = incomingRequests,
-                    currentUserSession = currentUserSession,
-                    currentNest = currentNest,
-                    onCreateNest = { viewModel.createNewNest(it) },
-                    onJoinNest = { no, pass -> viewModel.joinNest(no, pass) },
-                    onSignOut = { viewModel.signOut() },
-                    onToggleOfflineMode = { viewModel.toggleOfflineMode() },
-                    onSyncOfflineCache = { viewModel.syncOfflineLocations() },
-                    onToggleBackgroundTracking = { viewModel.toggleBackgroundTracking() },
-                    onPurgeTtlRecords = { viewModel.purgeTtlOldRecords() },
-                    onSendInvite = { contact, type, name, relation, colorHex ->
-                        viewModel.sendFamilyInvite(contact, type, name, relation, colorHex)
-                    },
-                    onAcceptIncomingRequest = { viewModel.acceptIncomingRequest(it) },
-                    onDeclineIncomingRequest = { viewModel.declineIncomingRequest(it) },
-                    onSimulateTargetDeviceAccept = { viewModel.simulateTargetDeviceAcceptance(it) },
-                    onCancelOutgoingInvite = { viewModel.cancelOutgoingInvite(it) },
-                    onRemoveMember = { viewModel.removeFamilyMember(it) },
-                    onToggleSharing = { viewModel.toggleMemberLocationSharing(it) }
-                )
-            }
-
-            // Top dismissible telemetry notification banner
-            AnimatedVisibility(
-                visible = statusBanner != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(12.dp)
-            ) {
-                statusBanner?.let { message ->
+            MainSubScreen.FAMILY_NEST_MANAGEMENT -> {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Top Bar for Returning to Settings
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0F172A),
-                        border = BorderStroke(1.dp, AccentCyan),
-                        shadowElevation = 6.dp,
-                        modifier = Modifier.fillMaxWidth()
+                        color = BrandBlue,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            IconButton(onClick = { currentSubScreen = MainSubScreen.NONE }) {
                                 Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = "Alert",
-                                    tint = AccentCyan,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = message,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Medium
+                            }
+                            Text(
+                                text = "Nest & Safe Zones",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    FamilySafeZonesView(
+                        members = members,
+                        geofences = geofences,
+                        isOfflineMode = isOfflineMode,
+                        pendingSyncCount = pendingSyncCount,
+                        isBackgroundTrackingActive = isBackgroundTrackingActive,
+                        outgoingInvites = outgoingInvites,
+                        incomingRequests = incomingRequests,
+                        currentUserSession = currentUserSession,
+                        currentNest = currentNest,
+                        onCreateNest = { viewModel.createNewNest(it) },
+                        onJoinNest = { no, pass -> viewModel.joinNest(no, pass) },
+                        onSignOut = { viewModel.signOut() },
+                        onToggleOfflineMode = { viewModel.toggleOfflineMode() },
+                        onSyncOfflineCache = { viewModel.syncOfflineLocations() },
+                        onToggleBackgroundTracking = { viewModel.toggleBackgroundTracking() },
+                        onPurgeTtlRecords = { viewModel.purgeTtlOldRecords() },
+                        onSendInvite = { contact, type, name, relation, colorHex ->
+                            viewModel.sendFamilyInvite(contact, type, name, relation, colorHex)
+                        },
+                        onAcceptIncomingRequest = { viewModel.acceptIncomingRequest(it) },
+                        onDeclineIncomingRequest = { viewModel.declineIncomingRequest(it) },
+                        onSimulateTargetDeviceAccept = { viewModel.simulateTargetDeviceAcceptance(it) },
+                        onCancelOutgoingInvite = { viewModel.cancelOutgoingInvite(it) },
+                        onRemoveMember = { viewModel.removeFamilyMember(it) },
+                        onToggleSharing = { viewModel.toggleMemberLocationSharing(it) }
+                    )
+                }
+            }
+
+            MainSubScreen.NONE -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (selectedTab) {
+                        0 -> NearNestMapView(
+                            currentUserSession = currentUserSession,
+                            members = members,
+                            geofences = geofences,
+                            timelineVisits = visits,
+                            onOpenProfile = { currentSubScreen = MainSubScreen.ACCOUNT_INFO },
+                            onCaptureRealGps = {
+                                if (viewModel.locationServiceManager.hasLocationPermission()) {
+                                    viewModel.captureRealGpsLocation()
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
                                     )
+                                }
+                            },
+                            onSimulatePing = { viewModel.triggerLiveLocationPing() }
+                        )
+
+                        1 -> NearNestAiChatView(
+                            currentUserSession = currentUserSession,
+                            messages = chatMessages,
+                            isAiThinking = isAiThinking,
+                            onSendMessage = { viewModel.sendUserMessage(it) },
+                            onStartVoiceRecording = {
+                                if (viewModel.audioRecordingManager.hasRecordPermission()) {
+                                    viewModel.startVoiceRecording()
+                                } else {
+                                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            },
+                            onNavigateBack = { viewModel.setSelectedTab(0) },
+                            onEditProfile = { currentSubScreen = MainSubScreen.ACCOUNT_INFO }
+                        )
+
+                        2 -> NearNestDailyTraversalView(
+                            currentUserSession = currentUserSession,
+                            members = members,
+                            visits = visits,
+                            selectedMemberId = selectedMemberId,
+                            onSelectMember = { viewModel.setSelectedMember(it) },
+                            onNavigateBack = { viewModel.setSelectedTab(0) },
+                            onOpenProfile = { currentSubScreen = MainSubScreen.ACCOUNT_INFO }
+                        )
+
+                        3 -> NearNestSettingsView(
+                            currentUserSession = currentUserSession,
+                            currentNest = currentNest,
+                            onOpenAccountInfo = { currentSubScreen = MainSubScreen.ACCOUNT_INFO },
+                            onOpenNotifications = { currentSubScreen = MainSubScreen.NOTIFICATIONS },
+                            onOpenNestManagement = { currentSubScreen = MainSubScreen.FAMILY_NEST_MANAGEMENT },
+                            onToggleLocation = {
+                                if (viewModel.locationServiceManager.hasLocationPermission()) {
+                                    viewModel.captureRealGpsLocation()
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            },
+                            onSignOut = { viewModel.signOut() },
+                            onNavigateBack = { viewModel.setSelectedTab(0) }
+                        )
+                    }
+
+                    // Floating Bottom Navigation Bar (replicated from design)
+                    NearNestBottomNav(
+                        selectedTab = selectedTab,
+                        onTabSelected = { tab ->
+                            viewModel.setSelectedTab(tab)
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+            }
+        }
+
+        // Top Status / Telemetry Banner
+        AnimatedVisibility(
+            visible = statusBanner != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(12.dp)
+        ) {
+            statusBanner?.let { message ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF0F172A),
+                    border = BorderStroke(1.dp, AccentCyan),
+                    shadowElevation = 6.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Alert",
+                                tint = AccentCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium
                                 )
-                            }
-                            IconButton(
-                                onClick = { viewModel.dismissBanner() },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Dismiss",
-                                    tint = Color.LightGray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.dismissBanner() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = Color.LightGray,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
             }
+        }
 
-            // Live Voice Conversation Dialog (gemini-3.8-live)
-            if (isLiveVoiceActive) {
-                LiveVoiceConversationDialog(
-                    latestReply = liveVoiceLatestReply,
-                    onDismiss = { viewModel.toggleLiveVoiceMode() },
-                    onSpeakPrompt = { viewModel.sendLiveVoiceTurn(it) }
-                )
-            }
+        // Live Voice Conversation Dialog (gemini-3.8-live)
+        if (isLiveVoiceActive) {
+            LiveVoiceConversationDialog(
+                latestReply = liveVoiceLatestReply,
+                onDismiss = { viewModel.toggleLiveVoiceMode() },
+                onSpeakPrompt = { viewModel.sendLiveVoiceTurn(it) }
+            )
         }
     }
 }

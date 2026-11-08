@@ -48,7 +48,9 @@ class AuthManager(
 
     val clerkClient = com.example.data.auth.clerk.ClerkAuthClient()
 
-    private val _currentAuthPage = MutableStateFlow(AuthPage.LOGIN)
+    private val _currentAuthPage = MutableStateFlow(
+        if (!prefsManager.hasSeenOnboarding()) AuthPage.ONBOARDING else AuthPage.LOGIN
+    )
     val currentAuthPage: StateFlow<AuthPage> = _currentAuthPage.asStateFlow()
 
     private val _clerkVerificationPending = MutableStateFlow<com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification?>(null)
@@ -57,6 +59,11 @@ class AuthManager(
     fun setAuthPage(page: AuthPage) {
         _currentAuthPage.value = page
         _authError.value = null
+    }
+
+    fun completeOnboarding() {
+        prefsManager.setSeenOnboarding(true)
+        _currentAuthPage.value = AuthPage.LOGIN
     }
 
     /**
@@ -155,6 +162,15 @@ class AuthManager(
 
     fun dismissClerkVerification() {
         _clerkVerificationPending.value = null
+    }
+
+    fun setAuthError(error: String?) {
+        _authError.value = error
+    }
+
+    fun startClerkOAuth(provider: String) {
+        val method = if (provider.lowercase().contains("google")) AuthMethod.GOOGLE_GMAIL else AuthMethod.CLERK_AUTH
+        quickDemoLogin(method)
     }
 
     private fun completeClerkLogin(clerkSession: com.example.data.auth.clerk.ClerkSession) {
@@ -534,6 +550,19 @@ class AuthManager(
         _authError.value = null
         _lastDeliveredOtpMessage.value = null
         _authState.value = AuthState.UNAUTHENTICATED
+    }
+
+    /**
+     * Update current user profile details
+     */
+    fun updateProfile(displayName: String, email: String, phone: String) {
+        val current = _currentSession.value ?: return
+        val updated = current.copy(
+            displayName = displayName.ifBlank { current.displayName },
+            contact = email.ifBlank { current.contact }
+        )
+        _currentSession.value = updated
+        prefsManager.saveSession(updated)
     }
 
     private fun syncUserWithFamily(session: UserSession, repo: FamilyTrackingRepository) {

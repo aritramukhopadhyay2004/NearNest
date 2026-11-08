@@ -59,3 +59,4 @@ sealed class ClerkAuthResult {
         val code: String = "clerk_error"
     ) : ClerkAuthResult()
 }
+

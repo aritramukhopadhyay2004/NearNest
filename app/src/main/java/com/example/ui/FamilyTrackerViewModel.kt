@@ -586,6 +586,10 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         authManager.setAuthPage(page)
     }
 
+    fun completeOnboarding() {
+        authManager.completeOnboarding()
+    }
+
     /**
      * Authenticates user using Clerk signIn() method
      */
@@ -658,6 +662,14 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         authManager.dismissClerkVerification()
     }
 
+    fun setAuthError(error: String?) {
+        authManager.setAuthError(error)
+    }
+
+    fun startClerkOAuth(provider: String) {
+        authManager.startClerkOAuth(provider)
+    }
+
     fun createNewNest(nestName: String, creatorName: String = ""): FamilyNest {
         val created = authManager.createNewNest(nestName, creatorName)
         _statusBanner.value = "Created family nest '${created.nestName}' (${created.nestNo})!"
@@ -694,6 +706,11 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     fun signOut() {
         authManager.signOut()
         _statusBanner.value = "Signed out of NearNest session."
+    }
+
+    fun updateCurrentUserProfile(displayName: String, email: String, phone: String) {
+        authManager.updateProfile(displayName, email, phone)
+        _statusBanner.value = "✓ Profile updated successfully!"
     }
 
     fun quickDemoLogin(method: AuthMethod) {

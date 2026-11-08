@@ -1,13 +1,13 @@
 ﻿{
     "apkFileName":  "NearNest-latest.apk",
-    "buildDate":  "2026-11-08T12:23:02.2151595+05:30",
-    "fileSizeBytes":  27980990,
-    "fileSizeMb":  26.68,
-    "buildDurationSecs":  270.8,
+    "buildDate":  "2026-11-08T21:59:52.6619814+05:30",
+    "fileSizeBytes":  28934942,
+    "fileSizeMb":  27.59,
+    "buildDurationSecs":  143.7,
     "triggerReason":  "Force build requested (-Force).",
-    "gitCommit":  "87c13d1",
+    "gitCommit":  "0aac478",
     "gitMessage":  [
-                       "feat(auth): Pinterest-style login UI and unique Nest No + Nest Pass family connect system",
+                       "feat(auth): integrate Clerk authentication with custom Login and SignUp screens",
                        ""
                    ],
     "checkWindowDays":  20

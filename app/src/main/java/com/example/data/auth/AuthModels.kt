@@ -12,11 +12,14 @@ enum class AuthMethod(val displayName: String, val channelName: String) {
 }
 
 /**
- * Authentication Screen Pages for Clerk integration
+ * Authentication Screen Pages for Design Reference & Clerk integration
  */
 enum class AuthPage {
+    ONBOARDING,
     LOGIN,
-    SIGNUP
+    SIGNUP,
+    FORGOT_PASSWORD,
+    OTP_VERIFY
 }
 
 /**

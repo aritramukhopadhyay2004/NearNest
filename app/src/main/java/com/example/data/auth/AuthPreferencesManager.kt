@@ -30,6 +30,13 @@ class AuthPreferencesManager(context: Context) {
         private const val KEY_STORED_NEST_NAME = "key_stored_nest_name"
         private const val KEY_STORED_CREATOR_NAME = "key_stored_creator_name"
         private const val KEY_STORED_CREATED_AT = "key_stored_created_at"
+        private const val KEY_HAS_SEEN_ONBOARDING = "key_has_seen_onboarding"
+    }
+
+    fun hasSeenOnboarding(): Boolean = prefs.getBoolean(KEY_HAS_SEEN_ONBOARDING, false)
+
+    fun setSeenOnboarding(seen: Boolean = true) {
+        prefs.edit().putBoolean(KEY_HAS_SEEN_ONBOARDING, seen).apply()
     }
 
     /**

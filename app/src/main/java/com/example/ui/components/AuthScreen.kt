@@ -142,63 +142,19 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
     var showNestJoinDialog by remember { mutableStateOf(false) }
 
     when {
-        authState == AuthState.ENTER_OTP && activeChallenge != null -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF04070D),
-                                Color(0xFF0B132B),
-                                Color(0xFF070B14)
-                            )
-                        )
-                    )
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                // ==========================================
-                // OTP Verification View
-                // ==========================================
-                Spacer(modifier = Modifier.height(28.dp))
-
-                // Brand Emblem
-                Image(
-                    painter = painterResource(id = R.drawable.app_logo),
-                    contentDescription = "NearNest Logo",
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, AccentCyan, CircleShape)
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                OtpVerificationCard(
-                    challenge = activeChallenge!!,
-                    error = authError,
-                    deliveredPreview = lastDeliveredOtpMessage,
-                    onVerify = { enteredOtp ->
-                        viewModel.verifyOtp(enteredOtp, nameInput)
-                    },
-                    onResend = {
-                        viewModel.resendActiveOtp()
-                    },
-                    onChangeContact = {
-                        viewModel.cancelOtpVerification()
-                    }
-                )
-            }
+        (authState == AuthState.ENTER_OTP && activeChallenge != null) || currentAuthPage == AuthPage.OTP_VERIFY -> {
+            com.example.ui.screens.OtpVerificationScreen(
+                onVerifyOtp = { code ->
+                    viewModel.verifyOtp(code, nameInput)
+                },
+                onResendOtp = { viewModel.resendActiveOtp() },
+                onNavigateBack = {
+                    viewModel.cancelOtpVerification()
+                    viewModel.setAuthPage(AuthPage.LOGIN)
+                },
+                errorMessage = authError
+            )
         }
-    }
     authState == AuthState.NEST_SETUP -> {
         Box(
             modifier = Modifier
@@ -246,16 +202,31 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
             }
         }
     }
+    currentAuthPage == AuthPage.ONBOARDING -> {
+            com.example.ui.screens.OnboardingScreen(
+                onFinish = { viewModel.completeOnboarding() }
+            )
+        }
         currentAuthPage == AuthPage.SIGNUP -> {
             ClerkSignUpScreen(
                 viewModel = viewModel,
                 onNavigateToLogin = { viewModel.setAuthPage(AuthPage.LOGIN) }
             )
         }
+        currentAuthPage == AuthPage.FORGOT_PASSWORD -> {
+            com.example.ui.screens.ForgotPasswordScreen(
+                onSendOtp = { email ->
+                    viewModel.requestGoogleOtp(rawEmail = email)
+                    viewModel.setAuthPage(AuthPage.OTP_VERIFY)
+                },
+                onNavigateBack = { viewModel.setAuthPage(AuthPage.LOGIN) }
+            )
+        }
         else -> {
             ClerkLoginScreen(
                 viewModel = viewModel,
-                onNavigateToSignUp = { viewModel.setAuthPage(AuthPage.SIGNUP) }
+                onNavigateToSignUp = { viewModel.setAuthPage(AuthPage.SIGNUP) },
+                onNavigateToForgotPassword = { viewModel.setAuthPage(AuthPage.FORGOT_PASSWORD) }
             )
         }
     }
