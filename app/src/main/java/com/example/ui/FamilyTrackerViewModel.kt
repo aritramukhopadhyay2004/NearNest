@@ -737,6 +737,20 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         authManager.startClerkOAuth(provider)
     }
 
+    fun signInWithGoogle(
+        email: String,
+        displayName: String?,
+        photoUrl: String? = null,
+        idToken: String? = null
+    ) {
+        authManager.handleGoogleSignInSuccess(
+            email = email,
+            displayName = displayName,
+            photoUrl = photoUrl,
+            idToken = idToken
+        )
+    }
+
     fun createNewNest(nestName: String, creatorName: String = ""): FamilyNest {
         val created = authManager.createNewNest(nestName, creatorName)
         _statusBanner.value = "Created family nest '${created.nestName}' (${created.nestNo})!"

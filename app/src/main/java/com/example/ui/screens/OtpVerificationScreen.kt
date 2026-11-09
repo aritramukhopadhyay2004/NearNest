@@ -127,138 +127,134 @@ fun OtpVerificationScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 28.dp)
                         .padding(top = 32.dp, bottom = 28.dp)
-                        .navigationBarsPadding(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .navigationBarsPadding()
                 ) {
-                    Column {
-                        Text(
-                            text = "Verify Code",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BrandBlack
-                        )
+                    Text(
+                        text = "Verify Code",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandBlack
+                    )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = if (!targetEmail.isNullOrBlank()) {
-                                "Please enter the code sent to $targetEmail"
-                            } else {
-                                "Please enter a code from email"
-                            },
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280)
-                        )
+                    Text(
+                        text = if (!targetEmail.isNullOrBlank()) {
+                            "Please enter the code sent to $targetEmail"
+                        } else {
+                            "Please enter a code from email"
+                        },
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280)
+                    )
 
-                        Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                        // Outlined Pill Input
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .background(Color(0xFFF9FAFB), shape = CircleShape)
-                                .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (otpCode.isEmpty()) {
-                                Text(
-                                    text = "******",
-                                    color = Color(0xFF9CA3AF),
-                                    fontSize = 18.sp,
-                                    letterSpacing = 6.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = otpCode,
-                                onValueChange = {
-                                    val digitsOnly = it.filter { ch -> ch.isDigit() }
-                                    if (digitsOnly.length <= 6) {
-                                        otpCode = digitsOnly
-                                        localError = null
-                                    }
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                textStyle = TextStyle(
-                                    color = BrandBlack,
-                                    fontSize = 18.sp,
-                                    letterSpacing = 6.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                cursorBrush = SolidColor(BrandBlue),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("otp_code_input")
-                            )
-                        }
-
-                        val activeError = errorMessage ?: localError
-                        if (activeError != null) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = activeError,
-                                color = Color(0xFFEF4444),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
+                    // Outlined Pill Input
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .background(Color(0xFFF9FAFB), shape = CircleShape)
+                            .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Button(
-                            onClick = {
-                                if (otpCode.length < 4) {
-                                    localError = "Please enter the 6-digit verification code."
-                                } else {
-                                    onVerifyOtp(otpCode)
+                        if (otpCode.isEmpty()) {
+                            Text(
+                                text = "******",
+                                color = Color(0xFF9CA3AF),
+                                fontSize = 18.sp,
+                                letterSpacing = 6.sp
+                            )
+                        }
+                        BasicTextField(
+                            value = otpCode,
+                            onValueChange = {
+                                val digitsOnly = it.filter { ch -> ch.isDigit() }
+                                if (digitsOnly.length <= 6) {
+                                    otpCode = digitsOnly
+                                    localError = null
                                 }
                             },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            textStyle = TextStyle(
+                                color = BrandBlack,
+                                fontSize = 18.sp,
+                                letterSpacing = 6.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            cursorBrush = SolidColor(BrandBlue),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
-                                .testTag("otp_verify_continue_btn"),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BrandBlack,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text(
-                                text = "Verify & Continue",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                                .testTag("otp_code_input")
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                    val activeError = errorMessage ?: localError
+                    if (activeError != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = activeError,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
 
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Didn't receive code? ",
-                                color = Color(0xFF6B7280),
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = "Resend",
-                                color = BrandBlack,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .clickable {
-                                        onResendOtp()
-                                        Toast.makeText(context, "Resending OTP code...", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 8.dp)
-                            )
-                        }
+                    // Exactly 30pt (30.dp) distance beneath the text box
+                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Button(
+                        onClick = {
+                            if (otpCode.length < 4) {
+                                localError = "Please enter the 6-digit verification code."
+                            } else {
+                                onVerifyOtp(otpCode)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("otp_verify_continue_btn"),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandBlack,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "Verify & Continue",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Didn't receive code? ",
+                            color = Color(0xFF6B7280),
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "Resend",
+                            color = BrandBlack,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable {
+                                    onResendOtp()
+                                    Toast.makeText(context, "Resending OTP code...", Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(horizontal = 6.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }

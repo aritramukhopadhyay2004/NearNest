@@ -133,256 +133,251 @@ fun ResetPasswordScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 28.dp)
                         .padding(top = 32.dp, bottom = 28.dp)
-                        .navigationBarsPadding(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .navigationBarsPadding()
                 ) {
-                    Column {
+                    Text(
+                        text = "Reset Password",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandBlack
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (!targetEmail.isNullOrBlank()) {
+                            "Set a new password for $targetEmail"
+                        } else {
+                            "Set a new password for your account"
+                        },
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Input 1: New Password
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Reset Password",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = "New Password",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
                             color = BrandBlack
                         )
-
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = if (!targetEmail.isNullOrBlank()) {
-                                "Set a new password for $targetEmail"
-                            } else {
-                                "Set a new password for your account"
-                            },
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280)
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Input 1: New Password
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "New Password",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = BrandBlack
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(52.dp)
-                                    .background(Color(0xFFF9FAFB), shape = CircleShape)
-                                    .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                if (newPassword.isEmpty()) {
-                                    Text(
-                                        text = "Enter new password",
-                                        color = Color(0xFF9CA3AF),
-                                        fontSize = 14.sp
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    BasicTextField(
-                                        value = newPassword,
-                                        onValueChange = {
-                                            newPassword = it
-                                            errorMessage = null
-                                        },
-                                        singleLine = true,
-                                        visualTransformation = if (isNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Password,
-                                            imeAction = ImeAction.Next
-                                        ),
-                                        textStyle = TextStyle(
-                                            color = BrandBlack,
-                                            fontSize = 14.sp
-                                        ),
-                                        cursorBrush = SolidColor(BrandBlue),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .testTag("reset_password_new_input")
-                                    )
-                                    IconButton(
-                                        onClick = { isNewPasswordVisible = !isNewPasswordVisible },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                            contentDescription = "Toggle password visibility",
-                                            tint = Color(0xFF9CA3AF),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Input 2: Confirm Password
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "Confirm Password",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = BrandBlack
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(52.dp)
-                                    .background(Color(0xFFF9FAFB), shape = CircleShape)
-                                    .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                if (confirmPassword.isEmpty()) {
-                                    Text(
-                                        text = "Confirm your password",
-                                        color = Color(0xFF9CA3AF),
-                                        fontSize = 14.sp
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    BasicTextField(
-                                        value = confirmPassword,
-                                        onValueChange = {
-                                            confirmPassword = it
-                                            errorMessage = null
-                                        },
-                                        singleLine = true,
-                                        visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Password,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onDone = {
-                                                if (newPassword.isNotBlank() && confirmPassword.isNotBlank()) {
-                                                    if (newPassword != confirmPassword) {
-                                                        errorMessage = "Passwords do not match."
-                                                    } else if (newPassword.length < 6) {
-                                                        errorMessage = "Password must be at least 6 characters long."
-                                                    } else {
-                                                        onSavePassword(newPassword.trim())
-                                                    }
-                                                }
-                                            }
-                                        ),
-                                        textStyle = TextStyle(
-                                            color = BrandBlack,
-                                            fontSize = 14.sp
-                                        ),
-                                        cursorBrush = SolidColor(BrandBlue),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .testTag("reset_password_confirm_input")
-                                    )
-                                    IconButton(
-                                        onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isConfirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                            contentDescription = "Toggle password visibility",
-                                            tint = Color(0xFF9CA3AF),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Error message
-                        AnimatedVisibility(
-                            visible = errorMessage != null,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                            modifier = Modifier.padding(top = 10.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .background(Color(0xFFF9FAFB), shape = CircleShape)
+                                .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterStart
                         ) {
-                            errorMessage?.let { err ->
+                            if (newPassword.isEmpty()) {
                                 Text(
-                                    text = err,
-                                    color = Color(0xFFEF4444),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
+                                    text = "Enter new password",
+                                    color = Color(0xFF9CA3AF),
+                                    fontSize = 14.sp
                                 )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = newPassword,
+                                    onValueChange = {
+                                        newPassword = it
+                                        errorMessage = null
+                                    },
+                                    singleLine = true,
+                                    visualTransformation = if (isNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    textStyle = TextStyle(
+                                        color = BrandBlack,
+                                        fontSize = 14.sp
+                                    ),
+                                    cursorBrush = SolidColor(BrandBlue),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("reset_password_new_input")
+                                )
+                                IconButton(
+                                    onClick = { isNewPasswordVisible = !isNewPasswordVisible },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = {
-                                when {
-                                    newPassword.isBlank() -> {
-                                        errorMessage = "Please enter a new password."
-                                    }
-                                    newPassword.length < 6 -> {
-                                        errorMessage = "Password must be at least 6 characters long."
-                                    }
-                                    confirmPassword.isBlank() -> {
-                                        errorMessage = "Please confirm your new password."
-                                    }
-                                    newPassword != confirmPassword -> {
-                                        errorMessage = "Passwords do not match."
-                                    }
-                                    else -> {
-                                        onSavePassword(newPassword.trim())
-                                    }
-                                }
-                            },
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Input 2: Confirm Password
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Confirm Password",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = BrandBlack
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
-                                .testTag("reset_password_save_btn"),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BrandBlack,
-                                contentColor = Color.White
-                            )
+                                .height(52.dp)
+                                .background(Color(0xFFF9FAFB), shape = CircleShape)
+                                .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterStart
                         ) {
+                            if (confirmPassword.isEmpty()) {
+                                Text(
+                                    text = "Confirm your password",
+                                    color = Color(0xFF9CA3AF),
+                                    fontSize = 14.sp
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = confirmPassword,
+                                    onValueChange = {
+                                        confirmPassword = it
+                                        errorMessage = null
+                                    },
+                                    singleLine = true,
+                                    visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            if (newPassword.isNotBlank() && confirmPassword.isNotBlank()) {
+                                                if (newPassword != confirmPassword) {
+                                                    errorMessage = "Passwords do not match."
+                                                } else if (newPassword.length < 6) {
+                                                    errorMessage = "Password must be at least 6 characters long."
+                                                } else {
+                                                    onSavePassword(newPassword.trim())
+                                                }
+                                            }
+                                        }
+                                    ),
+                                    textStyle = TextStyle(
+                                        color = BrandBlack,
+                                        fontSize = 14.sp
+                                    ),
+                                    cursorBrush = SolidColor(BrandBlue),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("reset_password_confirm_input")
+                                )
+                                IconButton(
+                                    onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isConfirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Error message
+                    AnimatedVisibility(
+                        visible = errorMessage != null,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier.padding(top = 10.dp)
+                    ) {
+                        errorMessage?.let { err ->
                             Text(
-                                text = "Save New Password",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = err,
+                                color = Color(0xFFEF4444),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(30.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Back to ",
-                                color = Color(0xFF6B7280),
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = "Sign In",
-                                color = BrandBlack,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .clickable { onNavigateBack() }
-                                    .padding(horizontal = 6.dp, vertical = 8.dp)
-                            )
-                        }
+                    Button(
+                        onClick = {
+                            when {
+                                newPassword.isBlank() -> {
+                                    errorMessage = "Please enter a new password."
+                                }
+                                newPassword.length < 6 -> {
+                                    errorMessage = "Password must be at least 6 characters long."
+                                }
+                                confirmPassword.isBlank() -> {
+                                    errorMessage = "Please confirm your new password."
+                                }
+                                newPassword != confirmPassword -> {
+                                    errorMessage = "Passwords do not match."
+                                }
+                                else -> {
+                                    onSavePassword(newPassword.trim())
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("reset_password_save_btn"),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandBlack,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "Save New Password",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Back to ",
+                            color = Color(0xFF6B7280),
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "Sign In",
+                            color = BrandBlack,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable { onNavigateBack() }
+                                .padding(horizontal = 6.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }

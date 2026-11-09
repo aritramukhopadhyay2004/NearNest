@@ -1,5 +1,8 @@
 package com.example.ui.components
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -51,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -62,9 +66,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.auth.google.GoogleAuthConfig
 import com.example.ui.FamilyTrackerViewModel
 import com.example.ui.theme.BrandBlack
 import com.example.ui.theme.BrandBlue
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 /**
  * Strict Design Replication of Sign Up Screen (auth_signup.png)
@@ -83,6 +91,40 @@ fun ClerkSignUpScreen(
 
     val isAuthProcessing by viewModel.isAuthProcessing.collectAsState()
     val authError by viewModel.authError.collectAsState()
+
+    val context = LocalContext.current
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        if (data != null) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                if (account != null && !account.email.isNullOrBlank()) {
+                    viewModel.signInWithGoogle(
+                        email = account.email!!,
+                        displayName = account.displayName ?: account.givenName,
+                        photoUrl = account.photoUrl?.toString(),
+                        idToken = account.idToken
+                    )
+                } else {
+                    viewModel.setAuthError("Google Sign-In did not return an account email.")
+                }
+            } catch (e: ApiException) {
+                // 12501 indicates user canceled the account picker
+                if (e.statusCode == 12501) {
+                    // Canceled by user - no error needed
+                } else if (e.statusCode == 10) {
+                    viewModel.setAuthError("Google Sign-In setup needed: Add SHA-1 fingerprint in Google Cloud / Firebase Console (Error 10).")
+                } else {
+                    viewModel.setAuthError("Google Sign-In failed (${e.statusCode}): ${e.localizedMessage}")
+                }
+            } catch (e: Throwable) {
+                viewModel.setAuthError("Google Sign-In error: ${e.localizedMessage}")
+            }
+        }
+    }
 
     val handleSignUp: () -> Unit = {
         if (name.isBlank() || email.isBlank() || password.isBlank()) {
@@ -398,13 +440,12 @@ fun ClerkSignUpScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Social login buttons: Google and X
+                    // Social login: Google (centered, X option removed)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Google button
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White,
@@ -412,36 +453,28 @@ fun ClerkSignUpScreen(
                             modifier = Modifier
                                 .size(width = 64.dp, height = 48.dp)
                                 .clickable {
-                                    viewModel.startClerkOAuth("google")
+                                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                        .requestEmail()
+                                        .requestProfile()
+                                        .apply {
+                                            val webClientId = GoogleAuthConfig.getWebClientId(context)
+                                            if (!webClientId.isNullOrBlank()) {
+                                                requestIdToken(webClientId)
+                                            }
+                                        }
+                                        .build()
+                                    val client = GoogleSignIn.getClient(context, gso)
+                                    // Sign out first to ensure account chooser always appears
+                                    client.signOut().addOnCompleteListener {
+                                        googleSignInLauncher.launch(client.signInIntent)
+                                    }
                                 }
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_google_logo),
                                     contentDescription = "Sign in with Google",
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // X (Twitter) button
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                            modifier = Modifier
-                                .size(width = 64.dp, height = 48.dp)
-                                .clickable {
-                                    viewModel.startClerkOAuth("twitter")
-                                }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_x_logo),
-                                    contentDescription = "Sign in with X",
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }

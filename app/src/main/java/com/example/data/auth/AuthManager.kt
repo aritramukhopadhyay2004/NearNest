@@ -476,8 +476,61 @@ class AuthManager(
     }
 
     fun startClerkOAuth(provider: String) {
+        // Kept for backward compatibility if invoked directly
         val method = if (provider.lowercase().contains("google")) AuthMethod.GOOGLE_GMAIL else AuthMethod.CLERK_AUTH
         quickDemoLogin(method)
+    }
+
+    /**
+     * Handles real Google Sign-In success from Google Play Services Account Chooser
+     */
+    fun handleGoogleSignInSuccess(
+        email: String,
+        displayName: String?,
+        photoUrl: String? = null,
+        idToken: String? = null
+    ) {
+        val now12h = timeFormat12h.format(Date())
+        val defaultNest = _currentNest.value
+        val resolvedName = displayName?.ifBlank { null }
+            ?: email.substringBefore("@").replace(".", " ")
+                .split(" ")
+                .joinToString(" ") { it.replaceFirstChar { ch -> ch.uppercase() } }
+
+        val userId = "google_${UUID.randomUUID().toString().take(8)}"
+
+        // Register/save credentials in local preferences so user details persist across app restarts
+        prefsManager.registerAccount(
+            email = email,
+            password = "",
+            displayName = resolvedName,
+            userId = userId
+        )
+
+        val session = UserSession(
+            userId = userId,
+            displayName = resolvedName,
+            authMethod = AuthMethod.GOOGLE_GMAIL,
+            contact = email,
+            avatarColorHex = 0xFF0284C7,
+            nestNo = defaultNest.nestNo,
+            nestPass = defaultNest.nestPass,
+            nestName = defaultNest.nestName,
+            token = idToken ?: UUID.randomUUID().toString(),
+            loginTimestamp12h = now12h,
+            isVerified = true
+        )
+
+        prefsManager.saveSession(session)
+        _currentSession.value = session
+        _activeChallenge.value = null
+        _clerkVerificationPending.value = null
+        _authState.value = AuthState.AUTHENTICATED
+        _authError.value = null
+
+        repository?.let { repo ->
+            syncUserWithFamily(session, repo)
+        }
     }
 
     private fun completeClerkLogin(clerkSession: com.example.data.auth.clerk.ClerkSession) {

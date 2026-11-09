@@ -114,133 +114,129 @@ fun ForgotPasswordScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 28.dp)
                         .padding(top = 36.dp, bottom = 28.dp)
-                        .navigationBarsPadding(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .navigationBarsPadding()
                 ) {
-                    Column {
-                        Text(
-                            text = "Forgot Password",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BrandBlack
-                        )
+                    Text(
+                        text = "Forgot Password",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandBlack
+                    )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                        Text(
-                            text = "Please enter your email for sending OTP",
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280)
-                        )
+                    Text(
+                        text = "Please enter your email for sending OTP",
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280)
+                    )
 
-                        Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                        // Email Label
-                        Text(
-                            text = "Email",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = BrandBlack
-                        )
+                    // Email Label
+                    Text(
+                        text = "Email",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = BrandBlack
+                    )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        // Outlined Pill Input
-                        Box(
+                    // Outlined Pill Input
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .background(Color(0xFFF9FAFB), shape = CircleShape)
+                            .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (email.isEmpty()) {
+                            Text(
+                                text = "youremails@yahoo.com",
+                                color = Color(0xFF9CA3AF),
+                                fontSize = 14.sp
+                            )
+                        }
+                        BasicTextField(
+                            value = email,
+                            onValueChange = {
+                                email = it
+                                errorMessage = null
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            textStyle = TextStyle(
+                                color = BrandBlack,
+                                fontSize = 14.sp
+                            ),
+                            cursorBrush = SolidColor(BrandBlue),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
-                                .background(Color(0xFFF9FAFB), shape = CircleShape)
-                                .border(1.dp, Color(0xFFD1D5DB), shape = CircleShape)
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (email.isEmpty()) {
-                                Text(
-                                    text = "youremails@yahoo.com",
-                                    color = Color(0xFF9CA3AF),
-                                    fontSize = 14.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = email,
-                                onValueChange = {
-                                    email = it
-                                    errorMessage = null
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                textStyle = TextStyle(
-                                    color = BrandBlack,
-                                    fontSize = 14.sp
-                                ),
-                                cursorBrush = SolidColor(BrandBlue),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("forgot_password_email_input")
-                            )
-                        }
-
-                        if (errorMessage != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = errorMessage!!,
-                                color = Color(0xFFEF4444),
-                                fontSize = 12.sp
-                            )
-                        }
+                                .testTag("forgot_password_email_input")
+                        )
                     }
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage!!,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Exactly 30pt (30.dp) distance beneath the text box
+                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Button(
+                        onClick = {
+                            if (email.isBlank() || !email.contains("@")) {
+                                errorMessage = "Please enter a valid email address."
+                            } else {
+                                onSendOtp(email)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("forgot_password_send_btn"),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandBlack,
+                            contentColor = Color.White
+                        )
                     ) {
-                        Button(
-                            onClick = {
-                                if (email.isBlank() || !email.contains("@")) {
-                                    errorMessage = "Please enter a valid email address."
-                                } else {
-                                    onSendOtp(email)
-                                }
-                            },
+                        Text(
+                            text = "Send",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Remember password? ",
+                            color = Color(0xFF6B7280),
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "Sign In",
+                            color = BrandBlack,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .testTag("forgot_password_send_btn"),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BrandBlack,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text(
-                                text = "Send",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Remember password? ",
-                                color = Color(0xFF6B7280),
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = "Sign In",
-                                color = BrandBlack,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .clickable { onNavigateBack() }
-                                    .padding(horizontal = 6.dp, vertical = 8.dp)
-                            )
-                        }
+                                .clickable { onNavigateBack() }
+                                .padding(horizontal = 6.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }
