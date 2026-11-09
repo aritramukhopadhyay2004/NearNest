@@ -28,6 +28,8 @@ Thumbs.db
 debug.keystore
 *.jks
 *.keystore
+google-services.json
+*/google-services.json
 
 # Local test screenshots
 screenshot*.png
