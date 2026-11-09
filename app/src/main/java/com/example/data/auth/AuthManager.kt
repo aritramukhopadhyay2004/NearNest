@@ -1,6 +1,9 @@
 package com.example.data.auth
 
 import android.content.Context
+import android.util.Log
+import com.example.data.auth.email.EmailJsClient
+import com.example.data.auth.email.EmailJsResult
 import com.example.data.model.FamilyMember
 import com.example.data.repository.FamilyTrackingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +14,17 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlin.random.Random
+
+/**
+ * Pending user registration before OTP verification
+ */
+data class PendingSignUp(
+    val name: String,
+    val email: String,
+    val password: String,
+    val otpCode: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
 
 /**
  * Authentication Controller managing device onboarding, OTP generation,
@@ -47,6 +61,10 @@ class AuthManager(
     val lastDeliveredOtpMessage: StateFlow<String?> = _lastDeliveredOtpMessage.asStateFlow()
 
     val clerkClient = com.example.data.auth.clerk.ClerkAuthClient()
+    val emailJsClient = EmailJsClient()
+
+    private val _pendingSignUp = MutableStateFlow<PendingSignUp?>(null)
+    val pendingSignUp: StateFlow<PendingSignUp?> = _pendingSignUp.asStateFlow()
 
     private val _currentAuthPage = MutableStateFlow(
         if (!prefsManager.hasSeenOnboarding()) AuthPage.ONBOARDING else AuthPage.LOGIN
@@ -87,6 +105,78 @@ class AuthManager(
             }
         }
         return result
+    }
+
+    /**
+     * Initiates NearNest Sign Up flow:
+     * Generates a secure 6-digit OTP and dispatches it via EmailJS to the user's email address
+     * with format: "hey (name) your otp for verification for signing up is (------)"
+     * Navigates directly to OTP Verification screen.
+     */
+    suspend fun initiateSignUpWithEmailOtp(
+        name: String,
+        email: String,
+        password: String
+    ): Boolean {
+        _isProcessing.value = true
+        _authError.value = null
+
+        val cleanName = name.trim().ifBlank { "User" }
+        val cleanEmail = email.trim()
+        val cleanPassword = password.trim()
+
+        if (cleanEmail.isEmpty() || !cleanEmail.contains("@") || !cleanEmail.contains(".")) {
+            _authError.value = "Please enter a valid email address."
+            _isProcessing.value = false
+            return false
+        }
+
+        if (cleanPassword.isEmpty()) {
+            _authError.value = "Please enter a password."
+            _isProcessing.value = false
+            return false
+        }
+
+        val generatedCode = String.format(Locale.US, "%06d", Random.nextInt(100000, 999999))
+        val deliveryMessage = "hey $cleanName your otp for verification for signing up is ($generatedCode)"
+
+        val challenge = OtpChallenge(
+            target = cleanEmail,
+            method = AuthMethod.EMAIL_OTP,
+            code = generatedCode,
+            timestampEpoch = System.currentTimeMillis(),
+            expirySeconds = 300,
+            deliveryMessage = deliveryMessage
+        )
+
+        _activeChallenge.value = challenge
+        _pendingSignUp.value = PendingSignUp(cleanName, cleanEmail, cleanPassword, generatedCode)
+        _lastDeliveredOtpMessage.value = "Email to $cleanEmail: Code is $generatedCode"
+
+        // Dispatch email via EmailJS client
+        val emailResult = emailJsClient.sendOtpEmail(
+            toName = cleanName,
+            toEmail = cleanEmail,
+            otpCode = generatedCode
+        )
+
+        _isProcessing.value = false
+
+        when (emailResult) {
+            is EmailJsResult.Success -> {
+                Log.d("AuthManager", "EmailJS delivered successfully: ${emailResult.message}")
+            }
+            is EmailJsResult.Warning -> {
+                Log.w("AuthManager", "EmailJS warning: ${emailResult.message}")
+            }
+            is EmailJsResult.Error -> {
+                Log.e("AuthManager", "EmailJS error: ${emailResult.message}")
+            }
+        }
+
+        _authState.value = AuthState.ENTER_OTP
+        _currentAuthPage.value = AuthPage.OTP_VERIFY
+        return true
     }
 
     /**
@@ -297,12 +387,16 @@ class AuthManager(
     }
 
     /**
-     * Resend current active OTP
+     * Resend current active OTP (dispatches fresh email via EmailJS for Sign Up)
      */
-    fun resendActiveOtp(): Boolean {
+    suspend fun resendActiveOtp(): Boolean {
         val current = _activeChallenge.value ?: return false
         val newCode = String.format(Locale.US, "%06d", Random.nextInt(100000, 999999))
-        val newMsg = if (current.method == AuthMethod.PHONE_SMS) {
+        val pending = _pendingSignUp.value
+
+        val newMsg = if (pending != null) {
+            "hey ${pending.name} your otp for verification for signing up is ($newCode)"
+        } else if (current.method == AuthMethod.PHONE_SMS) {
             "[NearNest SMS Security] Your new OTP is $newCode."
         } else {
             "[NearNest Google Auth] Your new verification code is $newCode."
@@ -314,8 +408,17 @@ class AuthManager(
             deliveryMessage = newMsg
         )
         _activeChallenge.value = updated
-        _lastDeliveredOtpMessage.value = "${if (current.method == AuthMethod.PHONE_SMS) "SMS" else "Gmail"} to ${current.target}: Code is $newCode"
+        _lastDeliveredOtpMessage.value = "${if (current.method == AuthMethod.PHONE_SMS) "SMS" else "Email"} to ${current.target}: Code is $newCode"
         _authError.value = null
+
+        if (pending != null) {
+            _pendingSignUp.value = pending.copy(otpCode = newCode)
+            emailJsClient.sendOtpEmail(
+                toName = pending.name,
+                toEmail = pending.email,
+                otpCode = newCode
+            )
+        }
         return true
     }
 
@@ -331,7 +434,7 @@ class AuthManager(
         }
 
         if (challenge.isExpired()) {
-            _authError.value = "Verification code has expired. Tap 'Resend OTP' to get a fresh code."
+            _authError.value = "Verification code has expired. Tap 'Resend' to get a fresh code."
             return false
         }
 
@@ -342,20 +445,24 @@ class AuthManager(
         }
 
         // OTP Verified successfully!
+        val pending = _pendingSignUp.value
         val resolvedName = when {
+            pending != null && pending.name.isNotBlank() -> pending.name.trim()
             customDisplayName.isNotBlank() -> customDisplayName.trim()
             challenge.method == AuthMethod.PHONE_SMS -> "User (${challenge.target.takeLast(4)})"
             else -> challenge.target.substringBefore("@").replace(".", " ").capitalizeWords()
         }
+        val resolvedContact = pending?.email ?: challenge.target
+        val resolvedMethod = if (pending != null) AuthMethod.EMAIL_OTP else challenge.method
 
         val now12h = timeFormat12h.format(Date())
         val nest = _currentNest.value
         val session = UserSession(
             userId = "user_" + UUID.randomUUID().toString().take(8),
             displayName = resolvedName,
-            authMethod = challenge.method,
-            contact = challenge.target,
-            avatarColorHex = if (challenge.method == AuthMethod.PHONE_SMS) 0xFF0284C7 else 0xFF10B981,
+            authMethod = resolvedMethod,
+            contact = resolvedContact,
+            avatarColorHex = 0xFF0284C7,
             nestNo = nest.nestNo,
             nestPass = nest.nestPass,
             nestName = nest.nestName,
@@ -368,7 +475,9 @@ class AuthManager(
         prefsManager.saveSession(session)
         _currentSession.value = session
         _activeChallenge.value = null
+        _pendingSignUp.value = null
         _authState.value = AuthState.AUTHENTICATED
+        _currentAuthPage.value = AuthPage.LOGIN
         _lastDeliveredOtpMessage.value = null
 
         // Sync with repository family members if available
@@ -563,6 +672,9 @@ class AuthManager(
         )
         _currentSession.value = updated
         prefsManager.saveSession(updated)
+
+        val contactVal = if (email.isNotBlank()) email else phone
+        repository?.updateMemberProfile(current.userId, updated.displayName, contactVal)
     }
 
     private fun syncUserWithFamily(session: UserSession, repo: FamilyTrackingRepository) {
@@ -573,16 +685,18 @@ class AuthManager(
                 name = session.displayName,
                 relation = "Self (Device Owner)",
                 colorHex = session.avatarColorHex,
-                batteryPercent = 95,
+                batteryPercent = com.example.data.telemetry.DeviceBatteryManager(context).readCurrentBattery().percentage,
                 currentPlace = "Home",
-                currentLat = 37.7749,
-                currentLng = -122.4194,
+                currentLat = 21.9868,
+                currentLng = 87.8542,
                 lastSeenTime12h = session.loginTimestamp12h,
                 phone = if (session.authMethod == AuthMethod.PHONE_SMS) session.contact else null,
-                email = if (session.authMethod == AuthMethod.GOOGLE_GMAIL) session.contact else null
+                email = if (session.authMethod != AuthMethod.PHONE_SMS) session.contact else null
             )
             // Add or update member in local repository
             repo.registerUserAsFamilyMember(newMember)
+        } else {
+            repo.updateMemberProfile(session.userId, session.displayName, session.contact)
         }
     }
 

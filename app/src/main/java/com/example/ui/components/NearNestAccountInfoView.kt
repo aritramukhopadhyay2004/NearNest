@@ -66,14 +66,14 @@ fun NearNestAccountInfoView(
     onNavigateBack: () -> Unit
 ) {
     var selectedGender by remember { mutableStateOf("Sir") }
-    var firstName by remember {
+    var firstName by remember(currentUserSession) {
         mutableStateOf(currentUserSession?.displayName?.substringBefore(" ") ?: "Amit")
     }
-    var lastName by remember {
-        mutableStateOf(currentUserSession?.displayName?.substringAfter(" ", "") ?: "Mukhopadhyay")
+    var lastName by remember(currentUserSession) {
+        mutableStateOf(currentUserSession?.displayName?.substringAfter(" ", "") ?: "User")
     }
-    var email by remember {
-        mutableStateOf(currentUserSession?.contact ?: "amit@nearnest.app")
+    var email by remember(currentUserSession) {
+        mutableStateOf(currentUserSession?.contact ?: "user@nearnest.app")
     }
     var phoneNumber by remember { mutableStateOf("9876543210") }
     var emergencyNumber by remember { mutableStateOf("9123456780") }

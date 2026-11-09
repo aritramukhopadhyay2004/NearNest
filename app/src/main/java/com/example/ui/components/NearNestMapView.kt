@@ -131,7 +131,7 @@ fun NearNestMapView(
                 Marker(
                     state = MarkerState(position = LatLng(member.currentLat, member.currentLng)),
                     title = member.name,
-                    snippet = "${member.relation} • Battery ${member.batteryPercent}%"
+                    snippet = "${member.relation} • Battery ${if (member.batteryPercent in 0..100) "${member.batteryPercent}%" else "--%"}"
                 )
             }
         }

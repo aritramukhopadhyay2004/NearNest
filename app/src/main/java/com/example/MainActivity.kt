@@ -57,6 +57,7 @@ import com.example.ui.components.NearNestAiChatView
 import com.example.ui.components.NearNestBottomNav
 import com.example.ui.components.NearNestDailyTraversalView
 import com.example.ui.components.NearNestMapView
+import com.example.ui.components.NearNestNotificationBanner
 import com.example.ui.components.NearNestNotificationsView
 import com.example.ui.components.NearNestSettingsView
 import com.example.ui.theme.AccentCyan
@@ -314,66 +315,12 @@ fun MainAppScreen(viewModel: FamilyTrackerViewModel) {
             }
         }
 
-        // Top Status / Telemetry Banner
-        AnimatedVisibility(
-            visible = statusBanner != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(12.dp)
-        ) {
-            statusBanner?.let { message ->
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF0F172A),
-                    border = BorderStroke(1.dp, AccentCyan),
-                    shadowElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Alert",
-                                tint = AccentCyan,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.dismissBanner() },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                tint = Color.LightGray,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        // Top Status / Telemetry Banner (Strict NearNest Design System)
+        NearNestNotificationBanner(
+            message = statusBanner,
+            onDismiss = { viewModel.dismissBanner() },
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
 
         // Live Voice Conversation Dialog (gemini-3.8-live)
         if (isLiveVoiceActive) {

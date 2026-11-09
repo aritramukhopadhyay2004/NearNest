@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -89,7 +90,9 @@ fun NearNestNotificationsView(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = 24.dp)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 24.dp, bottom = 84.dp)
                 ) {
                     // --- SECTION 1: TODAY ---
                     Text(
@@ -242,8 +245,6 @@ fun NearNestNotificationsView(
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }

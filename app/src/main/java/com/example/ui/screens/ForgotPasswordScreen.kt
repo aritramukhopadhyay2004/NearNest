@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -60,6 +63,7 @@ fun ForgotPasswordScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BrandBlue)
+            .imePadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -106,6 +110,7 @@ fun ForgotPasswordScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 28.dp)
                         .padding(top = 36.dp, bottom = 28.dp)
                         .navigationBarsPadding(),
@@ -227,7 +232,9 @@ fun ForgotPasswordScreen(
                                 color = BrandBlack,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable { onNavigateBack() }
+                                modifier = Modifier
+                                    .clickable { onNavigateBack() }
+                                    .padding(horizontal = 6.dp, vertical = 8.dp)
                             )
                         }
                     }

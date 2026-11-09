@@ -8,7 +8,8 @@ import java.util.UUID
 enum class AuthMethod(val displayName: String, val channelName: String) {
     PHONE_SMS("Mobile Phone", "SMS"),
     GOOGLE_GMAIL("Google Account", "Gmail"),
-    CLERK_AUTH("Clerk Auth", "Clerk")
+    CLERK_AUTH("Clerk Auth", "Clerk"),
+    EMAIL_OTP("Email OTP", "EmailJS")
 }
 
 /**

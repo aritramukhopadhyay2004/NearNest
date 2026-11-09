@@ -144,13 +144,15 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
     when {
         (authState == AuthState.ENTER_OTP && activeChallenge != null) || currentAuthPage == AuthPage.OTP_VERIFY -> {
             com.example.ui.screens.OtpVerificationScreen(
+                targetEmail = activeChallenge?.target,
+                deliveryMessage = activeChallenge?.deliveryMessage,
                 onVerifyOtp = { code ->
                     viewModel.verifyOtp(code, nameInput)
                 },
                 onResendOtp = { viewModel.resendActiveOtp() },
                 onNavigateBack = {
                     viewModel.cancelOtpVerification()
-                    viewModel.setAuthPage(AuthPage.LOGIN)
+                    viewModel.setAuthPage(AuthPage.SIGNUP)
                 },
                 errorMessage = authError
             )

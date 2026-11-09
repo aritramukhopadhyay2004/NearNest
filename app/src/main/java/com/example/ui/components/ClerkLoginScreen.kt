@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -99,6 +100,7 @@ fun ClerkLoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BrandBlue)
+            .imePadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -287,7 +289,9 @@ fun ClerkLoginScreen(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = BrandBlack,
-                            modifier = Modifier.clickable { onNavigateToForgotPassword() }
+                            modifier = Modifier
+                                .clickable { onNavigateToForgotPassword() }
+                                .padding(vertical = 4.dp, horizontal = 2.dp)
                         )
                     }
 
@@ -435,7 +439,9 @@ fun ClerkLoginScreen(
                             color = BrandBlack,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { onNavigateToSignUp() }
+                            modifier = Modifier
+                                .clickable { onNavigateToSignUp() }
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
                         )
                     }
                 }

@@ -21,7 +21,10 @@ data class FamilyMember(
     val isSharingLocation: Boolean = true,
     val email: String? = null,
     val phone: String? = null
-)
+) {
+    val batteryDisplay: String
+        get() = if (batteryPercent in 0..100) "$batteryPercent%" else "--%"
+}
 
 /**
  * Family invitation contact method

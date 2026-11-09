@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,23 +83,28 @@ fun ClerkSignUpScreen(
 
     val isAuthProcessing by viewModel.isAuthProcessing.collectAsState()
     val authError by viewModel.authError.collectAsState()
-    val clerkPendingVerification by viewModel.clerkVerificationPending.collectAsState()
 
-    // Verification modal dialog if Clerk requires Email OTP verification
-    clerkPendingVerification?.let { pending ->
-        ClerkVerificationDialog(
-            needsVerification = pending,
-            onDismiss = { viewModel.dismissClerkVerification() },
-            onVerify = { code ->
-                viewModel.verifyClerkCode(code = code)
-            }
-        )
+    val handleSignUp: () -> Unit = {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            viewModel.setAuthError("Please fill in Name, Email, and Password.")
+        } else if (!email.contains("@") || !email.contains(".")) {
+            viewModel.setAuthError("Please enter a valid email address.")
+        } else if (password.length < 6) {
+            viewModel.setAuthError("Password must be at least 6 characters.")
+        } else {
+            viewModel.startSignUpWithEmailOtp(
+                name = name.trim(),
+                email = email.trim(),
+                password = password
+            )
+        }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BrandBlue)
+            .imePadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -292,14 +298,7 @@ fun ClerkSignUpScreen(
                                         imeAction = ImeAction.Done
                                     ),
                                     keyboardActions = KeyboardActions(
-                                        onDone = {
-                                            if (name.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                                                val names = name.trim().split(" ")
-                                                val firstName = names.firstOrNull() ?: name.trim()
-                                                val lastName = names.drop(1).joinToString(" ").ifBlank { "User" }
-                                                viewModel.signUp(email.trim(), password, firstName, lastName, "")
-                                            }
-                                        }
+                                        onDone = { handleSignUp() }
                                     ),
                                     textStyle = TextStyle(
                                         color = BrandBlack,
@@ -346,16 +345,7 @@ fun ClerkSignUpScreen(
 
                     // Primary Button: "Sign Up"
                     Button(
-                        onClick = {
-                            if (name.isBlank() || email.isBlank() || password.isBlank()) {
-                                viewModel.setAuthError("Please fill in Name, Email, and Password.")
-                            } else {
-                                val names = name.trim().split(" ")
-                                val firstName = names.firstOrNull() ?: name.trim()
-                                val lastName = names.drop(1).joinToString(" ").ifBlank { "User" }
-                                viewModel.signUp(email.trim(), password, firstName, lastName, "")
-                            }
-                        },
+                        onClick = { handleSignUp() },
                         enabled = !isAuthProcessing,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -474,7 +464,9 @@ fun ClerkSignUpScreen(
                             color = BrandBlack,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { onNavigateToLogin() }
+                            modifier = Modifier
+                                .clickable { onNavigateToLogin() }
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
                         )
                     }
                 }

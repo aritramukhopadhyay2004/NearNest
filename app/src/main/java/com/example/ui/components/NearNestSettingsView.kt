@@ -107,8 +107,9 @@ fun NearNestSettingsView(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
                         .padding(horizontal = 24.dp)
-                        .padding(top = 32.dp, bottom = 90.dp)
+                        .padding(top = 32.dp, bottom = 84.dp)
                 ) {
                     Text(
                         text = "Settings",

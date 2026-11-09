@@ -123,7 +123,7 @@ class FamilyTrackingRepository(
                 currentLat = newLat,
                 currentLng = newLng,
                 lastSeenTime12h = currentTimeStr,
-                batteryPercent = (member.batteryPercent - 1).coerceAtLeast(15)
+                batteryPercent = member.batteryPercent
             )
             currentList[index] = updatedMember
             _members.value = currentList
@@ -469,7 +469,7 @@ class FamilyTrackingRepository(
             name = invite.recipientName,
             relation = invite.relation,
             colorHex = invite.colorHex,
-            batteryPercent = (75..95).random(),
+            batteryPercent = -1, // Unavailable until telemetry is received from remote device
             isCharging = false,
             currentPlace = "Home",
             currentLat = 37.7749 + Random.nextDouble(-0.005, 0.005),
@@ -562,6 +562,23 @@ class FamilyTrackingRepository(
             _members.value = listOf(member) + _members.value
         } else {
             _members.value = _members.value.map { if (it.id == member.id) member else it }
+        }
+    }
+
+    /**
+     * Update display name and contact for a member
+     */
+    fun updateMemberProfile(memberId: String, newName: String, newContact: String) {
+        _members.value = _members.value.map { member ->
+            if (member.id == memberId) {
+                member.copy(
+                    name = newName.ifBlank { member.name },
+                    email = if (newContact.contains("@")) newContact else member.email,
+                    phone = if (!newContact.contains("@")) newContact else member.phone
+                )
+            } else {
+                member
+            }
         }
     }
 

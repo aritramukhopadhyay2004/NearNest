@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,7 +50,11 @@ import com.example.R
 import com.example.data.auth.UserSession
 import com.example.data.model.FamilyMember
 import com.example.data.model.TimelineVisit
+import com.example.data.telemetry.DeviceBatteryManager
 import com.example.ui.theme.BrandBlack
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.ui.theme.BrandBlue
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -82,7 +89,14 @@ fun NearNestDailyTraversalView(
     onOpenProfile: () -> Unit
 ) {
     var selectedDateRange by remember { mutableStateOf("15 Dec - 20 Dec 2023") }
-    var selectedMemberName by remember { mutableStateOf(currentUserSession?.displayName ?: "Amit") }
+    var selectedMemberName by remember(currentUserSession) { mutableStateOf(currentUserSession?.displayName ?: "Amit") }
+
+    val context = LocalContext.current
+    val batteryManager = remember(context) { DeviceBatteryManager(context) }
+    val batteryInfo by batteryManager.batteryInfo.collectAsState()
+    val currentTime12h = remember {
+        SimpleDateFormat("h:mm a", Locale.US).format(Date())
+    }
 
     val defaultLocation = LatLng(21.9868, 87.8542)
     val cameraPositionState = rememberCameraPositionState {
@@ -114,7 +128,8 @@ fun NearNestDailyTraversalView(
             .fillMaxSize()
             .background(Color(0xFFFAFAFA))
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 90.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 84.dp)
     ) {
         // 1. Top Section: Interactive Map Preview Card
         Box(
@@ -300,8 +315,9 @@ fun NearNestDailyTraversalView(
                     fontSize = 11.sp,
                     color = Color(0xFF4B5563)
                 )
+                val batteryText = if (batteryInfo.isAvailable) "${batteryInfo.percentage}%" else "--%"
                 Text(
-                    text = "7:30 AM | 65%",
+                    text = "$currentTime12h | $batteryText",
                     fontSize = 10.sp,
                     color = Color(0xFF9CA3AF)
                 )
@@ -385,8 +401,10 @@ fun NearNestDailyTraversalView(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        val membersDisplay = remember {
-            listOf("Amit", "Ronit", "Sarah", "Mou", "Dipak", "Ajay")
+        val userName = currentUserSession?.displayName?.substringBefore(" ") ?: "Amit"
+        val membersDisplay = remember(userName) {
+            val base = listOf("Amit", "Ronit", "Sarah", "Mou", "Dipak", "Ajay")
+            if (base.any { it.equals(userName, ignoreCase = true) }) base else listOf(userName) + base
         }
 
         Row(

@@ -571,12 +571,32 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         return success
     }
 
+    val pendingSignUp = authManager.pendingSignUp
+
+    /**
+     * Start Sign Up with EmailJS OTP verification flow
+     */
+    fun startSignUpWithEmailOtp(
+        name: String,
+        email: String,
+        password: String,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val success = authManager.initiateSignUpWithEmailOtp(name, email, password)
+            if (success) {
+                _statusBanner.value = "Verification code sent to $email"
+            }
+            onComplete?.invoke(success)
+        }
+    }
+
     fun verifyOtp(enteredCode: String, customDisplayName: String = ""): Boolean {
         val success = authManager.verifyOtp(enteredCode, customDisplayName)
         if (success) {
-            _statusBanner.value = "Welcome to NearNest! Device authenticated."
             currentUserSession.value?.let { session ->
                 _selectedMemberId.value = session.userId
+                _statusBanner.value = "Welcome to NearNest, ${session.displayName}!"
             }
         }
         return success
@@ -691,12 +711,13 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
         authManager.completeNestSetup()
     }
 
-    fun resendActiveOtp(): Boolean {
-        val success = authManager.resendActiveOtp()
-        if (success) {
-            _statusBanner.value = "A fresh verification code has been dispatched."
+    fun resendActiveOtp() {
+        viewModelScope.launch {
+            val success = authManager.resendActiveOtp()
+            if (success) {
+                _statusBanner.value = "A fresh verification code has been dispatched."
+            }
         }
-        return success
     }
 
     fun cancelOtpVerification() {
