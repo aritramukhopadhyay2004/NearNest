@@ -7,10 +7,11 @@ import com.example.BuildConfig
  * Configuration resolver for Google Authentication
  */
 object GoogleAuthConfig {
+    const val DEFAULT_WEB_CLIENT_ID = "78436465787-bh8c5dsnrqg8l94k9l774fvivnnq7soc.apps.googleusercontent.com"
+
     /**
-     * Resolves the OAuth 2.0 Web Client ID from BuildConfig or string resources (e.g. from google-services.json).
-     * If null or blank, Google Play Services still presents the native account picker
-     * and signs the user in with their full profile (email, display name, photo).
+     * Resolves the OAuth 2.0 Web Client ID from BuildConfig, string resources (from google-services.json),
+     * or the registered Firebase Web Client ID.
      */
     fun getWebClientId(context: Context): String? {
         // 1. Check BuildConfig if added in secrets / env
@@ -29,6 +30,6 @@ object GoogleAuthConfig {
             }
         } catch (_: Throwable) {}
 
-        return null
+        return DEFAULT_WEB_CLIENT_ID
     }
 }
