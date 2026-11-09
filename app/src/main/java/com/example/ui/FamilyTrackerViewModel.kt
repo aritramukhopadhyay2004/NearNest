@@ -572,6 +572,7 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     val pendingSignUp = authManager.pendingSignUp
+    val pendingResetEmail = authManager.pendingResetEmail
 
     /**
      * Start Sign Up with EmailJS OTP verification flow
@@ -589,6 +590,52 @@ class FamilyTrackerViewModel(application: Application) : AndroidViewModel(applic
             }
             onComplete?.invoke(success)
         }
+    }
+
+    /**
+     * Start Sign In with EmailJS OTP verification flow
+     */
+    fun startSignInWithEmailOtp(
+        email: String,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val success = authManager.initiateSignInWithEmailOtp(email)
+            if (success) {
+                _statusBanner.value = "Sign-in verification code sent to $email"
+            }
+            onComplete?.invoke(success)
+        }
+    }
+
+    /**
+     * Start Forgot Password with EmailJS OTP verification flow
+     */
+    fun startPasswordResetWithEmailOtp(
+        email: String,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val success = authManager.initiatePasswordResetOtp(email)
+            if (success) {
+                _statusBanner.value = "Password reset code sent to $email"
+            }
+            onComplete?.invoke(success)
+        }
+    }
+
+    /**
+     * Complete Password Reset with new password
+     */
+    fun completePasswordReset(
+        newPassword: String,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        val success = authManager.completePasswordReset(newPassword)
+        if (success) {
+            _statusBanner.value = "Password reset successfully! Please sign in with your new password."
+        }
+        onComplete?.invoke(success)
     }
 
     fun verifyOtp(enteredCode: String, customDisplayName: String = ""): Boolean {

@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.auth.AuthMethod
 import com.example.data.auth.AuthPage
+import com.example.data.auth.OtpPurpose
 import com.example.data.auth.clerk.ClerkConfig
 import org.junit.Assert.*
 import org.junit.Test
@@ -34,6 +35,10 @@ class ExampleUnitTest {
     assertEquals("CLERK_AUTH", AuthMethod.CLERK_AUTH.name)
     assertEquals("LOGIN", AuthPage.LOGIN.name)
     assertEquals("SIGNUP", AuthPage.SIGNUP.name)
+    assertEquals("FORGOT_PASSWORD", AuthPage.FORGOT_PASSWORD.name)
+    assertEquals("OTP_VERIFY", AuthPage.OTP_VERIFY.name)
+    assertEquals("RESET_PASSWORD", AuthPage.RESET_PASSWORD.name)
+    assertEquals(3, OtpPurpose.values().size)
   }
 }
 

@@ -66,6 +66,9 @@ class AuthManager(
     private val _pendingSignUp = MutableStateFlow<PendingSignUp?>(null)
     val pendingSignUp: StateFlow<PendingSignUp?> = _pendingSignUp.asStateFlow()
 
+    private val _pendingResetEmail = MutableStateFlow<String?>(null)
+    val pendingResetEmail: StateFlow<String?> = _pendingResetEmail.asStateFlow()
+
     private val _currentAuthPage = MutableStateFlow(
         if (!prefsManager.hasSeenOnboarding()) AuthPage.ONBOARDING else AuthPage.LOGIN
     )
@@ -85,16 +88,81 @@ class AuthManager(
     }
 
     /**
-     * Authenticates existing user using Clerk signIn() method
+     * Authenticates existing user using Clerk signIn() or stored registered account credentials
      */
     suspend fun signInWithClerk(identifier: String, password: String): com.example.data.auth.clerk.ClerkAuthResult {
         _isProcessing.value = true
         _authError.value = null
-        val result = clerkClient.signIn(identifier, password)
+
+        val cleanIdentifier = identifier.trim()
+        val cleanPassword = password.trim()
+
+        // 1. Check local registered accounts first
+        if (prefsManager.isAccountRegistered(cleanIdentifier)) {
+            if (prefsManager.validateCredentials(cleanIdentifier, cleanPassword)) {
+                _isProcessing.value = false
+                val displayName = prefsManager.getAccountDisplayName(cleanIdentifier).ifBlank {
+                    cleanIdentifier.substringBefore("@").replace(".", " ").capitalizeWords()
+                }
+                val userId = prefsManager.getAccountId(cleanIdentifier).ifBlank {
+                    "user_" + UUID.randomUUID().toString().take(8)
+                }
+                val now12h = timeFormat12h.format(Date())
+                val nest = _currentNest.value
+                val session = UserSession(
+                    userId = userId,
+                    displayName = displayName,
+                    authMethod = AuthMethod.EMAIL_OTP,
+                    contact = cleanIdentifier,
+                    avatarColorHex = 0xFF0284C7,
+                    nestNo = nest.nestNo,
+                    nestPass = nest.nestPass,
+                    nestName = nest.nestName,
+                    token = UUID.randomUUID().toString(),
+                    loginTimestamp12h = now12h,
+                    isVerified = true
+                )
+                prefsManager.saveSession(session)
+                _currentSession.value = session
+                _activeChallenge.value = null
+                _clerkVerificationPending.value = null
+                _authState.value = AuthState.AUTHENTICATED
+                _currentAuthPage.value = AuthPage.LOGIN
+                _authError.value = null
+                repository?.let { repo -> syncUserWithFamily(session, repo) }
+                return com.example.data.auth.clerk.ClerkAuthResult.Success(
+                    com.example.data.auth.clerk.ClerkSession(
+                        sessionId = "sess_local_" + UUID.randomUUID().toString().take(8),
+                        userId = userId,
+                        status = "active",
+                        token = session.token,
+                        user = com.example.data.auth.clerk.ClerkUser(
+                            id = userId,
+                            email = cleanIdentifier,
+                            firstName = displayName.substringBefore(" "),
+                            lastName = displayName.substringAfter(" ", "")
+                        )
+                    )
+                )
+            } else {
+                _isProcessing.value = false
+                val err = "Incorrect password. Please try again or reset your password."
+                _authError.value = err
+                return com.example.data.auth.clerk.ClerkAuthResult.Error(err)
+            }
+        }
+
+        // 2. Otherwise authenticate using Clerk API client
+        val result = clerkClient.signIn(cleanIdentifier, cleanPassword)
         _isProcessing.value = false
 
         when (result) {
             is com.example.data.auth.clerk.ClerkAuthResult.Success -> {
+                val user = result.session.user
+                val resolvedName = user?.displayName?.ifBlank { null }
+                    ?: user?.email?.substringBefore("@")
+                    ?: "NearNest Member"
+                prefsManager.registerAccount(cleanIdentifier, cleanPassword, resolvedName, user?.id ?: "user_clerk")
                 completeClerkLogin(result.session)
             }
             is com.example.data.auth.clerk.ClerkAuthResult.NeedsVerification -> {
@@ -146,7 +214,8 @@ class AuthManager(
             code = generatedCode,
             timestampEpoch = System.currentTimeMillis(),
             expirySeconds = 300,
-            deliveryMessage = deliveryMessage
+            deliveryMessage = deliveryMessage,
+            purpose = OtpPurpose.SIGN_UP
         )
 
         _activeChallenge.value = challenge
@@ -157,7 +226,8 @@ class AuthManager(
         val emailResult = emailJsClient.sendOtpEmail(
             toName = cleanName,
             toEmail = cleanEmail,
-            otpCode = generatedCode
+            otpCode = generatedCode,
+            purpose = OtpPurpose.SIGN_UP
         )
 
         _isProcessing.value = false
@@ -176,6 +246,153 @@ class AuthManager(
 
         _authState.value = AuthState.ENTER_OTP
         _currentAuthPage.value = AuthPage.OTP_VERIFY
+        return true
+    }
+
+    /**
+     * Initiates NearNest Sign In with Email OTP flow:
+     * Generates a secure 6-digit OTP and dispatches it via EmailJS to the user's email address
+     * Navigates directly to OTP Verification screen.
+     */
+    suspend fun initiateSignInWithEmailOtp(email: String): Boolean {
+        _isProcessing.value = true
+        _authError.value = null
+
+        val cleanEmail = email.trim()
+        if (cleanEmail.isEmpty() || !cleanEmail.contains("@") || !cleanEmail.contains(".")) {
+            _authError.value = "Please enter a valid email address."
+            _isProcessing.value = false
+            return false
+        }
+
+        val storedName = prefsManager.getAccountDisplayName(cleanEmail)
+        val cleanName = if (storedName.isNotBlank()) storedName else cleanEmail.substringBefore("@").replace(".", " ").capitalizeWords()
+
+        val generatedCode = String.format(Locale.US, "%06d", Random.nextInt(100000, 999999))
+        val deliveryMessage = "hey $cleanName your otp for verification for sign in is ($generatedCode)"
+
+        val challenge = OtpChallenge(
+            target = cleanEmail,
+            method = AuthMethod.EMAIL_OTP,
+            code = generatedCode,
+            timestampEpoch = System.currentTimeMillis(),
+            expirySeconds = 300,
+            deliveryMessage = deliveryMessage,
+            purpose = OtpPurpose.SIGN_IN
+        )
+
+        _activeChallenge.value = challenge
+        _pendingSignUp.value = null
+        _lastDeliveredOtpMessage.value = "Email to $cleanEmail: Code is $generatedCode"
+
+        val emailResult = emailJsClient.sendOtpEmail(
+            toName = cleanName,
+            toEmail = cleanEmail,
+            otpCode = generatedCode,
+            purpose = OtpPurpose.SIGN_IN
+        )
+
+        _isProcessing.value = false
+
+        when (emailResult) {
+            is EmailJsResult.Success -> {
+                Log.d("AuthManager", "EmailJS sign-in OTP dispatched: ${emailResult.message}")
+            }
+            is EmailJsResult.Warning -> {
+                Log.w("AuthManager", "EmailJS warning: ${emailResult.message}")
+            }
+            is EmailJsResult.Error -> {
+                Log.e("AuthManager", "EmailJS error: ${emailResult.message}")
+            }
+        }
+
+        _authState.value = AuthState.ENTER_OTP
+        _currentAuthPage.value = AuthPage.OTP_VERIFY
+        return true
+    }
+
+    /**
+     * Initiates NearNest Forgot Password flow:
+     * Generates a secure 6-digit OTP and dispatches it via EmailJS for password reset verification
+     * Navigates directly to OTP Verification screen.
+     */
+    suspend fun initiatePasswordResetOtp(email: String): Boolean {
+        _isProcessing.value = true
+        _authError.value = null
+
+        val cleanEmail = email.trim()
+        if (cleanEmail.isEmpty() || !cleanEmail.contains("@") || !cleanEmail.contains(".")) {
+            _authError.value = "Please enter a valid email address."
+            _isProcessing.value = false
+            return false
+        }
+
+        val storedName = prefsManager.getAccountDisplayName(cleanEmail)
+        val cleanName = if (storedName.isNotBlank()) storedName else cleanEmail.substringBefore("@").replace(".", " ").capitalizeWords()
+
+        val generatedCode = String.format(Locale.US, "%06d", Random.nextInt(100000, 999999))
+        val deliveryMessage = "hey $cleanName your otp for verification for password reset is ($generatedCode)"
+
+        val challenge = OtpChallenge(
+            target = cleanEmail,
+            method = AuthMethod.EMAIL_OTP,
+            code = generatedCode,
+            timestampEpoch = System.currentTimeMillis(),
+            expirySeconds = 300,
+            deliveryMessage = deliveryMessage,
+            purpose = OtpPurpose.FORGOT_PASSWORD
+        )
+
+        _activeChallenge.value = challenge
+        _pendingResetEmail.value = cleanEmail
+        _pendingSignUp.value = null
+        _lastDeliveredOtpMessage.value = "Email to $cleanEmail: Code is $generatedCode"
+
+        val emailResult = emailJsClient.sendOtpEmail(
+            toName = cleanName,
+            toEmail = cleanEmail,
+            otpCode = generatedCode,
+            purpose = OtpPurpose.FORGOT_PASSWORD
+        )
+
+        _isProcessing.value = false
+
+        when (emailResult) {
+            is EmailJsResult.Success -> {
+                Log.d("AuthManager", "EmailJS password reset OTP dispatched: ${emailResult.message}")
+            }
+            is EmailJsResult.Warning -> {
+                Log.w("AuthManager", "EmailJS warning: ${emailResult.message}")
+            }
+            is EmailJsResult.Error -> {
+                Log.e("AuthManager", "EmailJS error: ${emailResult.message}")
+            }
+        }
+
+        _authState.value = AuthState.ENTER_OTP
+        _currentAuthPage.value = AuthPage.OTP_VERIFY
+        return true
+    }
+
+    /**
+     * Completes password reset and updates credentials
+     */
+    fun completePasswordReset(newPassword: String): Boolean {
+        val targetEmail = _pendingResetEmail.value
+        if (targetEmail.isNullOrBlank()) {
+            _authError.value = "No password reset request found. Please request a new code."
+            return false
+        }
+
+        if (newPassword.trim().length < 6) {
+            _authError.value = "Password must be at least 6 characters long."
+            return false
+        }
+
+        prefsManager.updatePassword(targetEmail, newPassword.trim())
+        _pendingResetEmail.value = null
+        _authError.value = null
+        _currentAuthPage.value = AuthPage.LOGIN
         return true
     }
 
@@ -387,19 +604,31 @@ class AuthManager(
     }
 
     /**
-     * Resend current active OTP (dispatches fresh email via EmailJS for Sign Up)
+     * Resend current active OTP (dispatches fresh email via EmailJS for Sign Up, Sign In, or Password Reset)
      */
     suspend fun resendActiveOtp(): Boolean {
         val current = _activeChallenge.value ?: return false
         val newCode = String.format(Locale.US, "%06d", Random.nextInt(100000, 999999))
         val pending = _pendingSignUp.value
 
-        val newMsg = if (pending != null) {
-            "hey ${pending.name} your otp for verification for signing up is ($newCode)"
-        } else if (current.method == AuthMethod.PHONE_SMS) {
-            "[NearNest SMS Security] Your new OTP is $newCode."
+        val cleanName = when {
+            pending != null -> pending.name
+            current.target.contains("@") -> prefsManager.getAccountDisplayName(current.target).ifBlank {
+                current.target.substringBefore("@").replace(".", " ").capitalizeWords()
+            }
+            else -> "User"
+        }
+
+        val actionPhrase = when (current.purpose) {
+            OtpPurpose.SIGN_UP -> "for signing up"
+            OtpPurpose.SIGN_IN -> "for sign in"
+            OtpPurpose.FORGOT_PASSWORD -> "for password reset"
+        }
+
+        val newMsg = if (current.target.contains("@")) {
+            "hey $cleanName your otp for verification $actionPhrase is ($newCode)"
         } else {
-            "[NearNest Google Auth] Your new verification code is $newCode."
+            "[NearNest SMS Security] Your new OTP is $newCode."
         }
 
         val updated = current.copy(
@@ -413,17 +642,21 @@ class AuthManager(
 
         if (pending != null) {
             _pendingSignUp.value = pending.copy(otpCode = newCode)
+        }
+
+        if (current.target.contains("@")) {
             emailJsClient.sendOtpEmail(
-                toName = pending.name,
-                toEmail = pending.email,
-                otpCode = newCode
+                toName = cleanName,
+                toEmail = current.target,
+                otpCode = newCode,
+                purpose = current.purpose
             )
         }
         return true
     }
 
     /**
-     * Verify the entered OTP code and complete initial authentication
+     * Verify the entered OTP code and complete initial authentication or transition to password reset
      */
     fun verifyOtp(enteredCode: String, customDisplayName: String = ""): Boolean {
         _authError.value = null
@@ -444,21 +677,35 @@ class AuthManager(
             return false
         }
 
-        // OTP Verified successfully!
+        // Handle Password Reset verification flow
+        if (challenge.purpose == OtpPurpose.FORGOT_PASSWORD) {
+            _activeChallenge.value = null
+            _pendingSignUp.value = null
+            _authState.value = AuthState.UNAUTHENTICATED
+            _currentAuthPage.value = AuthPage.RESET_PASSWORD
+            _lastDeliveredOtpMessage.value = null
+            return true
+        }
+
+        // OTP Verified successfully for SIGN_UP or SIGN_IN!
         val pending = _pendingSignUp.value
         val resolvedName = when {
             pending != null && pending.name.isNotBlank() -> pending.name.trim()
             customDisplayName.isNotBlank() -> customDisplayName.trim()
             challenge.method == AuthMethod.PHONE_SMS -> "User (${challenge.target.takeLast(4)})"
-            else -> challenge.target.substringBefore("@").replace(".", " ").capitalizeWords()
+            else -> {
+                val stored = prefsManager.getAccountDisplayName(challenge.target)
+                if (stored.isNotBlank()) stored else challenge.target.substringBefore("@").replace(".", " ").capitalizeWords()
+            }
         }
         val resolvedContact = pending?.email ?: challenge.target
-        val resolvedMethod = if (pending != null) AuthMethod.EMAIL_OTP else challenge.method
+        val resolvedMethod = if (pending != null || challenge.method == AuthMethod.EMAIL_OTP) AuthMethod.EMAIL_OTP else challenge.method
 
         val now12h = timeFormat12h.format(Date())
         val nest = _currentNest.value
+        val newUserId = "user_" + UUID.randomUUID().toString().take(8)
         val session = UserSession(
-            userId = "user_" + UUID.randomUUID().toString().take(8),
+            userId = newUserId,
             displayName = resolvedName,
             authMethod = resolvedMethod,
             contact = resolvedContact,
@@ -473,6 +720,17 @@ class AuthManager(
 
         // Save session locally
         prefsManager.saveSession(session)
+
+        // If signing up, register the account locally with its credentials
+        if (pending != null) {
+            prefsManager.registerAccount(
+                email = pending.email,
+                password = pending.password,
+                displayName = pending.name,
+                userId = newUserId
+            )
+        }
+
         _currentSession.value = session
         _activeChallenge.value = null
         _pendingSignUp.value = null

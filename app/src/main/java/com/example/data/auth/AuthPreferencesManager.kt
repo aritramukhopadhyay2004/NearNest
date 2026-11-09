@@ -31,6 +31,11 @@ class AuthPreferencesManager(context: Context) {
         private const val KEY_STORED_CREATOR_NAME = "key_stored_creator_name"
         private const val KEY_STORED_CREATED_AT = "key_stored_created_at"
         private const val KEY_HAS_SEEN_ONBOARDING = "key_has_seen_onboarding"
+
+        // Local User Credentials Storage
+        private const val PREF_ACCOUNT_PREFIX_PASS = "acc_pass_"
+        private const val PREF_ACCOUNT_PREFIX_NAME = "acc_name_"
+        private const val PREF_ACCOUNT_PREFIX_ID = "acc_id_"
     }
 
     fun hasSeenOnboarding(): Boolean = prefs.getBoolean(KEY_HAS_SEEN_ONBOARDING, false)
@@ -145,6 +150,65 @@ class AuthPreferencesManager(context: Context) {
             createdAt12h = createdAt,
             membersCount = 3
         )
+    }
+
+    /**
+     * Persist user credentials for local authentication and password resets
+     */
+    fun registerAccount(email: String, password: String, displayName: String, userId: String) {
+        val cleanEmail = email.trim().lowercase()
+        prefs.edit()
+            .putString(PREF_ACCOUNT_PREFIX_PASS + cleanEmail, password)
+            .putString(PREF_ACCOUNT_PREFIX_NAME + cleanEmail, displayName)
+            .putString(PREF_ACCOUNT_PREFIX_ID + cleanEmail, userId)
+            .apply()
+    }
+
+    /**
+     * Validate stored credentials
+     */
+    fun validateCredentials(email: String, password: String): Boolean {
+        val cleanEmail = email.trim().lowercase()
+        val storedPass = prefs.getString(PREF_ACCOUNT_PREFIX_PASS + cleanEmail, null)
+        return storedPass != null && storedPass == password
+    }
+
+    /**
+     * Check if an account is registered
+     */
+    fun isAccountRegistered(email: String): Boolean {
+        val cleanEmail = email.trim().lowercase()
+        return prefs.contains(PREF_ACCOUNT_PREFIX_PASS + cleanEmail)
+    }
+
+    /**
+     * Update account password (e.g. after forgot password verification)
+     */
+    fun updatePassword(email: String, newPassword: String): Boolean {
+        val cleanEmail = email.trim().lowercase()
+        val editor = prefs.edit()
+        editor.putString(PREF_ACCOUNT_PREFIX_PASS + cleanEmail, newPassword)
+        if (!prefs.contains(PREF_ACCOUNT_PREFIX_NAME + cleanEmail)) {
+            editor.putString(PREF_ACCOUNT_PREFIX_NAME + cleanEmail, cleanEmail.substringBefore("@"))
+        }
+        editor.apply()
+        return true
+    }
+
+    /**
+     * Retrieve stored display name for registered account
+     */
+    fun getAccountDisplayName(email: String): String {
+        val cleanEmail = email.trim().lowercase()
+        return prefs.getString(PREF_ACCOUNT_PREFIX_NAME + cleanEmail, "") ?: ""
+    }
+
+    /**
+     * Retrieve stored user ID for registered account
+     */
+    fun getAccountId(email: String): String {
+        val cleanEmail = email.trim().lowercase()
+        return prefs.getString(PREF_ACCOUNT_PREFIX_ID + cleanEmail, "") ?: ""
     }
 
     /**

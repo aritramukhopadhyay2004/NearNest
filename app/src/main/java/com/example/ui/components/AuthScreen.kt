@@ -151,13 +151,28 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
                 },
                 onResendOtp = { viewModel.resendActiveOtp() },
                 onNavigateBack = {
+                    val purpose = activeChallenge?.purpose
                     viewModel.cancelOtpVerification()
-                    viewModel.setAuthPage(AuthPage.SIGNUP)
+                    when (purpose) {
+                        com.example.data.auth.OtpPurpose.FORGOT_PASSWORD -> viewModel.setAuthPage(AuthPage.FORGOT_PASSWORD)
+                        com.example.data.auth.OtpPurpose.SIGN_IN -> viewModel.setAuthPage(AuthPage.LOGIN)
+                        else -> viewModel.setAuthPage(AuthPage.SIGNUP)
+                    }
                 },
                 errorMessage = authError
             )
         }
-    authState == AuthState.NEST_SETUP -> {
+        currentAuthPage == AuthPage.RESET_PASSWORD -> {
+            val pendingEmail by viewModel.pendingResetEmail.collectAsState()
+            com.example.ui.screens.ResetPasswordScreen(
+                targetEmail = pendingEmail,
+                onSavePassword = { newPassword ->
+                    viewModel.completePasswordReset(newPassword)
+                },
+                onNavigateBack = { viewModel.setAuthPage(AuthPage.LOGIN) }
+            )
+        }
+        authState == AuthState.NEST_SETUP -> {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -218,8 +233,7 @@ fun AuthScreen(viewModel: FamilyTrackerViewModel) {
         currentAuthPage == AuthPage.FORGOT_PASSWORD -> {
             com.example.ui.screens.ForgotPasswordScreen(
                 onSendOtp = { email ->
-                    viewModel.requestGoogleOtp(rawEmail = email)
-                    viewModel.setAuthPage(AuthPage.OTP_VERIFY)
+                    viewModel.startPasswordResetWithEmailOtp(email)
                 },
                 onNavigateBack = { viewModel.setAuthPage(AuthPage.LOGIN) }
             )
@@ -870,76 +884,6 @@ fun OtpVerificationCard(
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Delivered Notification Banner with 1-Tap Quick-Fill
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF0F2537),
-                border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.6f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = AccentCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (challenge.method == AuthMethod.PHONE_SMS) "INCOMING SMS SIMULATION" else "GMAIL INBOX SIMULATION",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = AccentCyan,
-                                fontSize = 10.sp,
-                                letterSpacing = 0.5.sp
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = "Delivered Code: ${challenge.code}",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = AccentCyan.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, AccentCyan),
-                        modifier = Modifier.clickable {
-                            otpCode = challenge.code
-                        }
-                    ) {
-                        Text(
-                            text = "Tap to Auto-Fill: ${challenge.code}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = AccentCyan,
-                                fontSize = 11.sp
-                            ),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))

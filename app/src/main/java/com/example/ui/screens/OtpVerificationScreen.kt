@@ -28,8 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -46,11 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,7 +71,6 @@ fun OtpVerificationScreen(
 ) {
     var otpCode by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
-    val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
     Box(
@@ -155,87 +150,7 @@ fun OtpVerificationScreen(
                             color = Color(0xFF6B7280)
                         )
 
-                        // Notification pill showing the message delivery format
-                        if (!deliveryMessage.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(18.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFF0FDF4), shape = RoundedCornerShape(14.dp))
-                                    .border(1.dp, Color(0xFFBBF7D0), shape = RoundedCornerShape(14.dp))
-                                    .padding(14.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MarkEmailRead,
-                                        contentDescription = null,
-                                        tint = Color(0xFF16A34A),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = deliveryMessage,
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF166534),
-                                            fontWeight = FontWeight.Medium,
-                                            lineHeight = 18.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Code Label & Paste Code helper button
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Your code",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = BrandBlack
-                            )
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clickable {
-                                        val clipboardText = clipboardManager.getText()?.text?.trim().orEmpty()
-                                        val digits = clipboardText.filter { it.isDigit() }.take(6)
-                                        if (digits.isNotEmpty()) {
-                                            otpCode = digits
-                                            localError = null
-                                            Toast.makeText(context, "Pasted OTP: $digits", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "No code found in clipboard", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Paste Code",
-                                    tint = BrandBlue,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Paste Code",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BrandBlue
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
 
                         // Outlined Pill Input
                         Box(

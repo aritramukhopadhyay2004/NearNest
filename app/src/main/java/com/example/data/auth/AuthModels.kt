@@ -20,7 +20,17 @@ enum class AuthPage {
     LOGIN,
     SIGNUP,
     FORGOT_PASSWORD,
-    OTP_VERIFY
+    OTP_VERIFY,
+    RESET_PASSWORD
+}
+
+/**
+ * Purpose of an issued OTP verification code
+ */
+enum class OtpPurpose {
+    SIGN_UP,
+    SIGN_IN,
+    FORGOT_PASSWORD
 }
 
 /**
@@ -79,7 +89,8 @@ data class OtpChallenge(
     val code: String, // 6-digit code e.g. "582914"
     val timestampEpoch: Long = System.currentTimeMillis(),
     val expirySeconds: Int = 120,
-    val deliveryMessage: String = ""
+    val deliveryMessage: String = "",
+    val purpose: OtpPurpose = OtpPurpose.SIGN_UP
 ) {
     fun isExpired(): Boolean {
         val elapsed = (System.currentTimeMillis() - timestampEpoch) / 1000

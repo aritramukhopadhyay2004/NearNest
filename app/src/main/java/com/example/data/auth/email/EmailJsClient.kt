@@ -1,5 +1,6 @@
 package com.example.data.auth.email
 
+import com.example.data.auth.OtpPurpose
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,23 +35,30 @@ class EmailJsClient(
         .build()
 
     /**
-     * Dispatches an OTP verification email to the user with the exact requested format:
+     * Dispatches an OTP verification email to the user with the requested format:
      * "hey (name) your otp for verification for signing up is (------)"
      */
     suspend fun sendOtpEmail(
         toName: String,
         toEmail: String,
-        otpCode: String
+        otpCode: String,
+        purpose: OtpPurpose = OtpPurpose.SIGN_UP
     ): EmailJsResult = withContext(Dispatchers.IO) {
         val trimmedEmail = toEmail.trim()
         val trimmedName = toName.trim().ifBlank { "User" }
 
+        val actionPhrase = when (purpose) {
+            OtpPurpose.SIGN_UP -> "for signing up"
+            OtpPurpose.SIGN_IN -> "for sign in"
+            OtpPurpose.FORGOT_PASSWORD -> "for password reset"
+        }
+
         // Plain text message adhering to user request
-        val plainMessage = "hey $trimmedName your otp for verification for signing up is ($otpCode)\n\n" +
+        val plainMessage = "hey $trimmedName your otp for verification $actionPhrase is ($otpCode)\n\n" +
                 "=========================\n" +
                 "OTP CODE: $otpCode\n" +
                 "=========================\n\n" +
-                "Please copy and paste this code into NearNest to complete your registration."
+                "Please copy and paste this code into NearNest to complete your verification."
 
         // HTML styled snippet for templates that support HTML
         val htmlSnippet = """
@@ -59,7 +67,7 @@ class EmailJsClient(
                     <span style="font-size: 18px; font-weight: 700; color: #0284C7;">NearNest Security</span>
                 </div>
                 <p style="font-size: 16px; color: #1E293B; line-height: 1.6; margin: 0 0 16px 0;">
-                    hey <strong>$trimmedName</strong> your otp for verification for signing up is <strong>($otpCode)</strong>
+                    hey <strong>$trimmedName</strong> your otp for verification $actionPhrase is <strong>($otpCode)</strong>
                 </p>
                 <div style="margin: 24px 0; text-align: center;">
                     <div style="display: inline-block; background-color: #0F172A; color: #FFFFFF; font-size: 26px; font-weight: 700; letter-spacing: 8px; padding: 14px 28px; border-radius: 12px; font-family: monospace;">
@@ -67,7 +75,7 @@ class EmailJsClient(
                     </div>
                 </div>
                 <p style="font-size: 13px; color: #64748B; line-height: 1.5; margin: 0 0 12px 0;">
-                    Copy this 6-digit code and paste it into the Verify Code screen in NearNest to activate your account.
+                    Copy this 6-digit code and paste it into the Verify Code screen in NearNest to continue.
                 </p>
             </div>
         """.trimIndent()
@@ -83,6 +91,8 @@ class EmailJsClient(
                 put("to_email", trimmedEmail)
                 put("otp_code", otpCode)
                 put("code", otpCode)
+                put("passcode", otpCode)
+                put("time", "10 minutes")
                 put("message", plainMessage)
                 put("html_message", htmlSnippet)
             })

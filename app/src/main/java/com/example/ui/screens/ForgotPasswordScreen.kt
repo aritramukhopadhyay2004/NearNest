@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -174,7 +175,9 @@ fun ForgotPasswordScreen(
                                     fontSize = 14.sp
                                 ),
                                 cursorBrush = SolidColor(BrandBlue),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("forgot_password_email_input")
                             )
                         }
 
@@ -202,7 +205,8 @@ fun ForgotPasswordScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp),
+                                .height(56.dp)
+                                .testTag("forgot_password_send_btn"),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = BrandBlack,

@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -345,6 +347,35 @@ fun ClerkLoginScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Secondary Pill Button: "Sign in with Email OTP"
+                    OutlinedButton(
+                        onClick = {
+                            if (identifier.isNotBlank() && identifier.contains("@")) {
+                                viewModel.startSignInWithEmailOtp(identifier.trim())
+                            } else {
+                                viewModel.setAuthError("Please enter your email to receive an OTP code.")
+                            }
+                        },
+                        enabled = !isAuthProcessing,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("clerk_login_email_otp_btn"),
+                        shape = CircleShape,
+                        border = BorderStroke(1.5.dp, BrandBlack),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = BrandBlack
+                        )
+                    ) {
+                        Text(
+                            text = "Sign in with Email OTP",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
